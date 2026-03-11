@@ -13,118 +13,76 @@ function [Data] = DataTest(TestName)
 %  LEGACY TEST CASES  (HW1 wave equation, used by RunMain.m)
 % =========================================================================
 
-if strcmp(TestName,'Test1')
-
-    Data.name    = TestName;
-    Data.domain  = [0, 2*pi];
-    Data.boundary = 'AA';
-    Data.T  = 2;
-    Data.dt = 0.0001;
-    Data.p  = 1;
-
-    Data.k   = 1;
-    Data.mu  = 1;
-    Data.ro  = 1;
-    Data.c   = sqrt(Data.mu/Data.ro);
-    Data.a   = 1;
-    Data.b   = 1;
-    Data.alfa = 1;
-    Data.w   = Data.k * Data.c;
-
-    Data.force = @(x,t) (Data.k^2 - Data.w^2) .* cos(Data.k*x - Data.w*t);
-    Data.gD1   = @(t) cos(Data.w*t);
-    Data.gD2   = @(t) cos(Data.k*Data.domain(2) - Data.w*t);
-    Data.gN1   = @(t)  Data.mu*Data.k.*sin(Data.w*t);
-    Data.gN2   = @(t) -Data.mu*Data.k.*sin(Data.k*Data.domain(2) - Data.w*t);
-    Data.gR1   = @(t)  Data.k.*sin(Data.w*t) - Data.a*cos(Data.w*t);
-    Data.gR2   = @(t) -Data.k*sin(Data.k*Data.domain(2) - Data.w*t) ...
-                      + Data.b*cos(Data.k*Data.domain(2) - Data.w*t);
-    Data.gI1   = @(t) -(Data.alfa*Data.w + Data.c*Data.k).*sin(Data.w*t);
-    Data.gI2   = @(t)  (Data.alfa*Data.w - Data.c*Data.k) ...
-                          .*sin(Data.k*Data.domain(2) - Data.w*t);
-
-    Data.u0 = @(x) cos(Data.k*x);
-    Data.v0 = @(x) Data.w*sin(Data.k*x);
-
-    Data.uex     = @(x,t) cos(Data.k*x - Data.w*t);
-    Data.graduex = @(x,t) -Data.k*sin(Data.k*x - Data.w*t);
-
-elseif strcmp(TestName,'Test2')
-
-    Data.name    = TestName;
-    Data.domain  = [0, 2];
-    Data.boundary = 'AA';
-    Data.T  = 2;
-    Data.dt = 0.0001;
-    Data.p  = 1;
-
-    Data.k   = 1;
-    Data.mu  = 1;
-    Data.ro  = 1;
-    Data.c   = sqrt(Data.mu/Data.ro);
-    Data.a   = 1;
-    Data.b   = 1;
-    Data.alfa = 0.9;
-    Data.w   = Data.k * Data.c;
-
-    Data.force = @(x,t) 0.*t.*x;
-    Data.gD1   = @(t) 0.*t;
-    Data.gD2   = @(t) 0.*t;
-    Data.gN1   = @(t) 0.*t;
-    Data.gN2   = @(t) 0.*t;
-    Data.gR1   = @(t) 0.*t;
-    Data.gR2   = @(t) 0.*t;
-    Data.gI1   = @(t) 0.*t;
-    Data.gI2   = @(t) 0.*t;
-
-    Data.u0 = @(x) exp(-100*(x-1).^2);
-    Data.v0 = @(x) 0.*x;
-
-    Data.uex     = @(x,t) 0*x.*t;
-    Data.graduex = @(x,t) 0.*x.*t;
-
-% =========================================================================
-%  HW2 — SHALLOW WATER EQUATIONS (SEM + theta-method)
-% =========================================================================
-
-elseif strcmp(TestName,'HW2_P4')
+if strcmp(TestName,'HW2_P4_GAUSS')
     %----------------------------------------------------------------------
-    %  Point 4 — Right-travelling Gaussian, periodic BC.
-    %  Exact solution:  eta(x,t) = eta0( mod(x - c*t , L) )
-    %                     q(x,t) = c * eta(x,t)
+    % Point 4 — periodic travelling Gaussian pulse
     %----------------------------------------------------------------------
-    Data.name     = 'HW2_P4';
+    Data.name     = 'HW2_P4_GAUSS';
     Data.domain   = [0, 1];
-    Data.boundary = 'PP';           % periodic–periodic
+    Data.boundary = 'PP';
     Data.T        = 0.5;
-    Data.dt       = 1e-3;           % may be overridden in RunMainSWE
+    Data.dt       = 1e-3;
+    Data.p        = 4;
 
-    Data.p        = 4;              % SEM polynomial degree (default)
-
-    % Physical parameters
     Data.H = 1;
     Data.g = 9.81;
-    Data.c = sqrt(Data.g * Data.H); % wave speed
+    Data.c = sqrt(Data.g * Data.H);
     Data.L = Data.domain(2) - Data.domain(1);
 
-    % Initial conditions
+    Data.test_label = 'Gaussian pulse';
+    Data.test_tag   = 'gauss';
+
+    % initial conditions
     Data.eta0 = @(x) exp(-50*(x - 0.5).^2);
     Data.q0   = @(x) Data.c .* exp(-50*(x - 0.5).^2);
 
-    % Exact solution at time t (periodic wrap via mod)
+    % exact solution
     Data.uex     = @(x,t) exp(-50*(mod(x - Data.c*t, Data.L) - 0.5).^2);
     Data.graduex = @(x,t) -100*(mod(x - Data.c*t, Data.L) - 0.5) ...
                           .* exp(-50*(mod(x - Data.c*t, Data.L) - 0.5).^2);
 
-    % Zero forcing
+    % optional exact discharge
+    Data.qex = @(x,t) Data.c .* Data.uex(x,t);
+
     Data.force = @(x,t) 0*x;
 
-    % Friction flag (off for P4)
     Data.use_friction = 0;
     Data.gamma        = 0;
 
-    % These flags are set in RunMainSWE, NOT here
-    % Data.calc_errors, Data.visual_graph, Data.snapshot, Data.surf
+elseif strcmp(TestName,'HW2_P4_SMOOTH')
+    %----------------------------------------------------------------------
+    % Point 4 — periodic smooth travelling wave
+    %----------------------------------------------------------------------
+    Data.name     = 'HW2_P4_SMOOTH';
+    Data.domain   = [0, 1];
+    Data.boundary = 'PP';
+    Data.T        = 0.5;
+    Data.dt       = 1e-3;
+    Data.p        = 4;
+
+    Data.H = 1;
+    Data.g = 9.81;
+    Data.c = sqrt(Data.g * Data.H);
+    Data.L = Data.domain(2) - Data.domain(1);
+
+    Data.test_label = 'Smooth periodic wave';
+    Data.test_tag   = 'smooth';
+
+    % initial conditions
+    Data.eta0 = @(x) cos(2*pi*x);
+    Data.q0   = @(x) Data.c .* cos(2*pi*x);
+
+    % exact solution
+    Data.uex     = @(x,t) cos(2*pi*(x - Data.c*t));
+    Data.graduex = @(x,t) -2*pi*sin(2*pi*(x - Data.c*t));
+
+    % optional exact discharge
+    Data.qex = @(x,t) Data.c .* Data.uex(x,t);
+
+    Data.force = @(x,t) 0*x;
+
+    Data.use_friction = 0;
+    Data.gamma        = 0;
 
 elseif strcmp(TestName,'HW2_P5a')
     %----------------------------------------------------------------------

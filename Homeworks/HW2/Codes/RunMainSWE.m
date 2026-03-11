@@ -24,7 +24,7 @@ addpath SemLib
 
 %% ── Global style ─────────────────────────────────────────────────────────
 fs  = 25;           % axis / tick / legend font size
-fst = 30;           % title font size
+fst = 50;           % title font size
 lw  = 2;            % line width
 ms  = 8;            % marker size
 c1  = '#0072BD';    % blue
@@ -36,186 +36,185 @@ c4  = '#7E2F8E';    % purple
 out_dir = 'Output';
 if ~exist(out_dir, 'dir'), mkdir(out_dir); end
 
-% =========================================================================
+%% =========================================================================
 %  POINT 4 — Snapshot: numerical solution vs exact at t = T
 % =========================================================================
-fprintf('\n=== POINT 4: Snapshot at T = 0.5 ===\n');
 
-Data_snap      = DataTest('HW2_P4');
-Data_snap.p    = 4;
-Data_snap.dt   = 1e-3;
-Data_snap.calc_errors = false;
+test_cases  = {'HW2_P4_GAUSS', 'HW2_P4_SMOOTH'};
+test_labels = {'Gaussian pulse', 'Smooth periodic wave'};
+test_tags   = {'gauss', 'smooth'};
 
-[~, Sol_snap, Fem_snap, ~] = MainSWE(Data_snap, 20);
+for itest = 1:length(test_cases)
 
-figure('Name','P4.1_eta_snapshot','NumberTitle','off');
-set(gcf, 'WindowState', 'maximized');
-plot(Sol_snap.x, Sol_snap.u_ex, '-',  'Color', c1, 'LineWidth', lw); hold on;
-plot(Sol_snap.x, Sol_snap.uh,   '--', 'Color', c2, 'LineWidth', lw, ...
-     'MarkerSize', ms);
-xlabel('x',           'FontSize', fs);
-ylabel('\eta(x, T)',  'FontSize', fs);
-title('SEM solution vs exact — T = 0.5', ...
-      'FontSize', fst, 'FontWeight', 'bold');
-legend('Exact \eta', 'Numerical \eta', ...
-       'FontSize', fs, 'Location', 'best');
-grid on; box on;
-ax = gca; ax.FontSize = fs;
-exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
+    Data_snap      = DataTest(test_cases{itest});
+    Data_snap.p    = 4;
+    Data_snap.dt   = 1e-3;
 
-% ── Also plot the discharge q ─────────────────────────────────────────────
-q_ex = Data_snap.c * Sol_snap.u_ex;     % exact q = c * eta (no friction)
+    [Err_snap, Sol_snap, ~, ~] = MainSWE(Data_snap, 20);
 
-figure('Name','P4.2_q_snapshot','NumberTitle','off');
-set(gcf, 'WindowState', 'maximized');
-plot(Sol_snap.x, q_ex,       '-',  'Color', c1, 'LineWidth', lw); hold on;
-plot(Sol_snap.x, Sol_snap.q, '--', 'Color', c2, 'LineWidth', lw);
-xlabel('x',           'FontSize', fs);
-ylabel('q(x, T)',     'FontSize', fs);
-title('Discharge q vs exact — T = 0.5', ...
-      'FontSize', fst, 'FontWeight', 'bold');
-legend('Exact q', 'Numerical q', 'FontSize', fs, 'Location', 'best');
-grid on; box on;
-ax = gca; ax.FontSize = fs;
-exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
+    fprintf('\n=== SNAPSHOT: %s ===\n', test_labels{itest});
+    fprintf('Final L2 error on eta = %.6e\n', Err_snap.L2);
 
-% =========================================================================
+    figure('Name', sprintf('P4_%s_eta_snapshot', test_tags{itest}), ...
+           'NumberTitle', 'off');
+    set(gcf, 'WindowState', 'maximized');
+    plot(Sol_snap.x, Sol_snap.uh,  '-', 'Color', c1, 'LineWidth', lw); hold on;
+    plot(Sol_snap.x, Sol_snap.u_ex, '--', 'Color', c2, 'LineWidth', lw);
+    xlabel('x', 'FontSize', fs);
+    ylabel('\eta(x,T)', 'FontSize', fs);
+    title(sprintf('%s — \\eta at T = %.2f', test_labels{itest}, Sol_snap.t), ...
+          'FontSize', fst, 'FontWeight', 'bold');
+    legend({'Numerical', 'Exact'}, 'FontSize', fs, 'Location', 'best');
+    grid on; box on;
+    ax = gca; ax.FontSize = fs;
+    exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
+
+    figure('Name', sprintf('P4_%s_q_snapshot', test_tags{itest}), ...
+           'NumberTitle', 'off');
+    set(gcf, 'WindowState', 'maximized');
+    plot(Sol_snap.x, Sol_snap.q, '-', 'Color', c3, 'LineWidth', lw); hold on;
+    if isfield(Data_snap, 'qex')
+        plot(Sol_snap.x, Data_snap.qex(Sol_snap.x, Sol_snap.t), '--', ...
+             'Color', c4, 'LineWidth', lw);
+        legend({'Numerical', 'Exact'}, 'FontSize', fs, 'Location', 'best');
+    else
+        legend({'Numerical'}, 'FontSize', fs, 'Location', 'best');
+    end
+    xlabel('x', 'FontSize', fs);
+    ylabel('q(x,T)', 'FontSize', fs);
+    title(sprintf('%s — q at T = %.2f', test_labels{itest}, Sol_snap.t), ...
+          'FontSize', fst, 'FontWeight', 'bold');
+    grid on; box on;
+    ax = gca; ax.FontSize = fs;
+    exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
+end
+
+%% =========================================================================
 %  POINT 4 — h-convergence  (fix p = 4, vary Ne)
 %  dt is chosen small enough to isolate the spatial error.
 %  For high-order SEM (p=4), use dt = h/c * 0.05 to keep temporal
 %  error below spatial error on the coarser meshes.
 % =========================================================================
-fprintf('\n=== POINT 4: h-convergence (p=4, Ne=4,8,16,32) ===\n');
 
-Data_conv   = DataTest('HW2_P4');
-Data_conv.p = 4;
-Data_conv.calc_errors = false;
+T_conv = 0.10;
+Ne_list = [10, 20, 40, 80];
+alpha_dt = 0.02;
 
-% Use Ne = [4, 8, 16, 32] with dt = alpha * h^{(p+1)/2} per mesh.
-% This balances temporal error O(dt^2) ~ O(h^{p+1}) so the spatial
-% convergence slope is clean on every refinement level.
-% alpha = 0.01  =>  temporal error / spatial error ~ 0.003  (< 0.5%)
-Ne_list  = [10, 20, 40];
-nNe     = length(Ne_list);
-alpha_dt = 0.05;
+for itest = 1:length(test_cases)
 
-h_vec   = zeros(1, nNe);
-eL2_vec = zeros(1, nNe);
-dt_used = zeros(1, nNe);
+    fprintf('\n=== h-convergence: %s ===\n', test_labels{itest});
 
-for i = 1 : nNe
-    Ne = Ne_list(i);
-    h  = Data_conv.L / Ne;
-    % dt proportional to h^{(p+1)/2} = h^2.5 for p=4
-    Data_conv.dt = alpha_dt * h^((Data_conv.p+1)/2);
+    Data_conv   = DataTest(test_cases{itest});
+    Data_conv.p = 4;
+    Data_conv.T = T_conv;
 
-    [Err, ~, Fem, ~] = MainSWE(Data_conv, Ne);
+    nNe = length(Ne_list);
+    h_vec   = zeros(1, nNe);
+    eL2_vec = zeros(1, nNe);
 
-    h_vec(i)   = Fem.h;
-    eL2_vec(i) = Err.L2;
-    dt_used(i) = Data_conv.dt;
+    for i = 1:nNe
+        Ne = Ne_list(i);
+        h  = Data_conv.L / Ne;
+        Data_conv.dt = alpha_dt * h^((Data_conv.p+1)/2);
 
-    fprintf('  Ne = %3d,  h = %.4f,  L2 err = %.4e,  dt = %.2e\n', ...
-            Ne, Fem.h, Err.L2, Data_conv.dt);
+        [Err, ~, Fem, ~] = MainSWE(Data_conv, Ne);
+
+        h_vec(i)   = Fem.h;
+        eL2_vec(i) = Err.L2;
+
+        fprintf('  Ne = %3d, h = %.4f, L2 = %.4e, dt = %.2e\n', ...
+                Ne, Fem.h, Err.L2, Data_conv.dt);
+    end
+
+    rates = zeros(1, nNe-1);
+    for i = 1:nNe-1
+        rates(i) = log(eL2_vec(i)/eL2_vec(i+1)) / log(h_vec(i)/h_vec(i+1));
+    end
+
+    p_ref     = Data_conv.p;
+    h_ref     = logspace(log10(min(h_vec)*0.7), log10(max(h_vec)*1.1), 200);
+    slope_ref = eL2_vec(1) * (h_ref / h_vec(1)).^(p_ref+1);
+
+    figure('Name', sprintf('P4_%s_h_convergence', test_tags{itest}), ...
+           'NumberTitle', 'off');
+    set(gcf, 'WindowState', 'maximized');
+    loglog(h_vec, eL2_vec, '-o', 'Color', c2, 'LineWidth', lw, ...
+           'MarkerSize', ms, 'MarkerFaceColor', c2); hold on;
+    loglog(h_ref, slope_ref, '--', 'Color', c1, 'LineWidth', lw-0.5);
+
+    for i = 1:nNe-1
+        xm = sqrt(h_vec(i) * h_vec(i+1));
+        ym = sqrt(eL2_vec(i) * eL2_vec(i+1)) * 2.0;
+        text(xm, ym, sprintf('rate = %.1f', rates(i)), ...
+             'FontSize', fs-4, 'Color', c2, 'FontWeight', 'bold', ...
+             'HorizontalAlignment', 'center');
+    end
+
+    xlabel('h = L/N_e', 'FontSize', fs);
+    ylabel('L^2 error on \eta', 'FontSize', fs);
+    title(sprintf('%s — h-convergence, p = %d, T = %.2f', ...
+          test_labels{itest}, p_ref, T_conv), ...
+          'FontSize', fst, 'FontWeight', 'bold');
+    legend({'L^2 error', sprintf('O(h^{%d})', p_ref+1)}, ...
+           'FontSize', fs, 'Location', 'northwest');
+    grid on; box on;
+    ax = gca; ax.FontSize = fs;
+    exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
 end
 
-% ── Convergence rates ──────────────────────────────────────────────────
-rates = zeros(1, nNe-1);
-for i = 1 : nNe-1
-    rates(i) = log(eL2_vec(i)/eL2_vec(i+1)) / log(h_vec(i)/h_vec(i+1));
-end
-fprintf('\n  Convergence rates (L2, eta):\n');
-for i = 1 : nNe-1
-    fprintf('    Ne = %2d -> %2d :  rate = %.2f\n', ...
-            Ne_list(i), Ne_list(i+1), rates(i));
-end
-
-% ── Reference slope O(h^{p+1}), anchored at COARSEST mesh point ───────
-% eL2_vec(end) is Ne=32 (finest), eL2_vec(1) is Ne=4 (coarsest).
-% Anchor at coarsest so the line passes through/near the data.
-p_ref     = Data_conv.p;
-h_ref     = logspace(log10(min(h_vec)*0.7), log10(max(h_vec)*1.1), 200);
-slope_ref = eL2_vec(1) * (h_ref / h_vec(1)).^(p_ref+1);
-
-figure('Name','P4.3_h_convergence','NumberTitle','off');
-set(gcf, 'WindowState', 'maximized');
-loglog(h_vec, eL2_vec, '-o', 'Color', c2, 'LineWidth', lw, ...
-       'MarkerSize', ms, 'MarkerFaceColor', c2); hold on;
-loglog(h_ref, slope_ref, '--', 'Color', c1, 'LineWidth', lw-0.5);
-
-% Rate labels: placed ABOVE the midpoint between consecutive pairs
-for i = 1 : nNe-1
-    xm = sqrt(h_vec(i) * h_vec(i+1));
-    ym = sqrt(eL2_vec(i) * eL2_vec(i+1)) * 2.5;  % above the curve
-    text(xm, ym, sprintf('rate = %.1f', rates(i)), ...
-         'FontSize', fs-4, 'Color', c2, 'FontWeight', 'bold', ...
-         'HorizontalAlignment', 'center');
-end
-
-xlabel('h = L/N_e',           'FontSize', fs);
-ylabel('L^2 error on \eta',   'FontSize', fs);
-title(sprintf('h-convergence — SEM, p = %d', p_ref), ...
-      'FontSize', fst, 'FontWeight', 'bold');
-legend({'L^2 error', sprintf('O(h^{%d})', p_ref+1)}, ...
-       'FontSize', fs, 'Location', 'northwest');
-grid on; box on;
-ax = gca; ax.FontSize = fs;
-exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
-
-% =========================================================================
+%% =========================================================================
 %  POINT 4 — p-convergence  (fix Ne = 5, vary p = 1 .. 6)
 % =========================================================================
-fprintf('\n=== POINT 4: p-convergence (Ne=5, p=1..6) ===\n');
-
-Data_pconv    = DataTest('HW2_P4');
-% dt fixed small: temporal error well below spatial for all p considered.
-% At p=1, Ne=5 the spatial error can be O(h^2) ≈ 0.04, so dt=1e-3 is fine.
-% At p=5, Ne=5 the spatial error drops to ~1e-8; dt=1e-4 gives dt^2=1e-8.
-% Use dt=5e-5 as safe common choice.
-Data_pconv.dt = 5e-5;
-Data_pconv.calc_errors = false;
-
 Ne_fixed = 5;
-% CreateMesh supports only p = 1 .. 5
 p_list   = [1, 2, 3, 4, 5];
-nP       = length(p_list);
+dt_pconv = 1e-5;
 
-eL2_p  = zeros(1, nP);
-DoF_p  = zeros(1, nP);           % total DOF (Ne * p)
+for itest = 1:length(test_cases)
 
-for i = 1 : nP
-    Data_pconv.p = p_list(i);
-    [Err, ~, Fem, ~] = MainSWE(Data_pconv, Ne_fixed);
-    eL2_p(i) = Err.L2;
-    DoF_p(i) = Fem.ndof - 1;     % periodic DOF count
-    fprintf('  p = %d,  DoF = %3d,  L2 err = %.4e\n', ...
-            p_list(i), DoF_p(i), eL2_p(i));
+    fprintf('\n=== p-convergence: %s ===\n', test_labels{itest});
+
+    Data_pconv    = DataTest(test_cases{itest});
+    Data_pconv.T  = T_conv;
+    Data_pconv.dt = dt_pconv;
+
+    nP    = length(p_list);
+    eL2_p = zeros(1, nP);
+
+    for i = 1:nP
+        Data_pconv.p = p_list(i);
+        [Err, ~, Fem, ~] = MainSWE(Data_pconv, Ne_fixed);
+        eL2_p(i) = Err.L2;
+
+        fprintf('  p = %d, DoF = %3d, L2 = %.4e\n', ...
+                p_list(i), Fem.ndof - 1, Err.L2);
+    end
+
+    figure('Name', sprintf('P4_%s_p_convergence', test_tags{itest}), ...
+           'NumberTitle', 'off');
+    set(gcf, 'WindowState', 'maximized');
+    semilogy(p_list, eL2_p, '-s', 'Color', c3, 'LineWidth', lw, ...
+             'MarkerSize', ms, 'MarkerFaceColor', c3);
+
+    for i = 1:nP-1
+        xm = 0.5*(p_list(i) + p_list(i+1));
+        ym = sqrt(eL2_p(i) * eL2_p(i+1));
+        rate_p = log(eL2_p(i)/eL2_p(i+1));
+        text(xm, ym * 0.4, sprintf('\\Delta = %.1f', rate_p), ...
+             'FontSize', fs-5, 'Color', c3, 'FontWeight', 'bold', ...
+             'HorizontalAlignment', 'center');
+    end
+
+    xlabel('Polynomial degree p', 'FontSize', fs);
+    ylabel('L^2 error on \eta', 'FontSize', fs);
+    title(sprintf('%s — p-convergence, N_e = %d, T = %.2f', ...
+          test_labels{itest}, Ne_fixed, T_conv), ...
+          'FontSize', fst, 'FontWeight', 'bold');
+    grid on; box on;
+    ax = gca; ax.FontSize = fs;
+    exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
 end
 
-figure('Name','P4.4_p_convergence','NumberTitle','off');
-set(gcf, 'WindowState', 'maximized');
-semilogy(p_list, eL2_p, '-s', 'Color', c3, 'LineWidth', lw, ...
-         'MarkerSize', ms, 'MarkerFaceColor', c3);
-
-% Annotate algebraic decay rate between consecutive p values
-for i = 1 : nP-1
-    xm = 0.5*(p_list(i) + p_list(i+1));
-    ym = sqrt(eL2_p(i) * eL2_p(i+1));
-    rate_p = log(eL2_p(i)/eL2_p(i+1));   % drop per unit p in log scale
-    text(xm, ym * 0.4, sprintf('\\Delta = %.1f', rate_p), ...
-         'FontSize', fs-5, 'Color', c3, 'FontWeight', 'bold', ...
-         'HorizontalAlignment', 'center');
-end
-
-xlabel('Polynomial degree p',    'FontSize', fs);
-ylabel('L^2 error on \eta',      'FontSize', fs);
-title(sprintf('p-convergence — SEM, N_e = %d', Ne_fixed), ...
-      'FontSize', fst, 'FontWeight', 'bold');
-grid on; box on;
-ax = gca; ax.FontSize = fs;
-exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
-
-% =========================================================================
+%% =========================================================================
 %  POINT 5a — Reflecting walls  (wall BC)
 % =========================================================================
 fprintf('\n=== POINT 5a: Reflecting walls ===\n');
@@ -249,13 +248,13 @@ grid on; box on;
 ax = gca; ax.FontSize = fs;
 exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
 
-% =========================================================================
+%% =========================================================================
 %  POINT 5b — Friction term  (compare periodic run with / without gamma)
 % =========================================================================
 fprintf('\n=== POINT 5b: Friction (gamma=1, periodic BC) ===\n');
 
 % Run WITHOUT friction (P4 for reference)
-Data_nofrict   = DataTest('HW2_P4');
+Data_nofrict   = DataTest('HW2_P4_GAUSS');
 Data_nofrict.p = 4;
 Data_nofrict.dt = 1e-3;
 [~, Sol_nofrict, ~, ~] = MainSWE(Data_nofrict, 20);
@@ -352,7 +351,7 @@ RHSm_E   = Mg - (1 - theta_E) * dt_E * Sg;
 [Lf_E, Uf_E, Pf_E] = lu(LHS_E);
 
 % Reference energy without friction (P4)
-Data_E0   = DataTest('HW2_P4');
+Data_E0   = DataTest('HW2_P4_GAUSS');
 Data_E0.p = 4;  Data_E0.dt = dt_E;
 [Region_E0]  = CreateMesh(Data_E0, Ne_E);
 [Fem_E0]     = CreateFemregion(Data_E0, Region_E0);

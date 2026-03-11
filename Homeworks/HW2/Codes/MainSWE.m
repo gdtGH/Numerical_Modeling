@@ -137,8 +137,8 @@ if strcmp(Data.boundary, 'PP')
     %  (M_glob + theta*dt*S_glob) U^{k+1} = (M_glob - (1-theta)*dt*S_glob) U^k
     % -------------------------------------------------------------------
     theta  = 0.5;                     % Crank-Nicolson
-    dt     = Data.dt;
-    Nsteps = round(Data.T / dt);
+    Nsteps = max(1, round(Data.T / Data.dt));
+    dt     = Data.T / Nsteps;
 
     LHS     = M_glob + theta       * dt * S_glob;
     RHS_mat = M_glob - (1 - theta) * dt * S_glob;
@@ -168,7 +168,9 @@ if strcmp(Data.boundary, 'PP')
     q      = U(ndof_per+1 : end);
 
     % Exact solution evaluated on the periodic DOFs at t = T
-    eta_ex = Data.uex(x_per, Data.T);
+    %eta_ex = Data.uex(x_per, Data.T);
+    t_num  = Nsteps * dt;
+    eta_ex = Data.uex(x_per, t_num);
 
     % L2 error via the periodic mass matrix (discrete inner product)
     diff    = eta - eta_ex;
@@ -181,7 +183,8 @@ if strcmp(Data.boundary, 'PP')
     Solutions = struct('uh',   eta,    ...
                        'u_ex', eta_ex, ...
                        'q',    q,      ...
-                       'x',    x_per);
+                       'x',    x_per,  ...
+                       't',    t_num);
 
 elseif strcmp(Data.boundary, 'WW')
     % -------------------------------------------------------------------
@@ -219,8 +222,8 @@ elseif strcmp(Data.boundary, 'WW')
 
     % Theta-method matrices
     theta   = 0.5;
-    dt      = Data.dt;
-    Nsteps  = round(Data.T / dt);
+    Nsteps  = max(1, round(Data.T / Data.dt));
+    dt      = Data.T / Nsteps;
 
     LHS_r   = M_r + theta       * dt * S_r;
     RHS_mat = M_r - (1 - theta) * dt * S_r;
@@ -250,10 +253,14 @@ elseif strcmp(Data.boundary, 'WW')
     fprintf('============================================================\n');
 
     Errors    = struct('L2', NaN);    % no exact solution for wall BC
+    
+    t_num = Nsteps * dt;
+
     Solutions = struct('uh',   eta,   ...
-                       'u_ex', 0*eta, ...
-                       'q',    q,     ...
-                       'x',    x_all);
+                   'u_ex', 0*eta, ...
+                   'q',    q,     ...
+                   'x',    x_all, ...
+                   't',    t_num);
 
 else
     error('MainSWE: boundary type ''%s'' not supported.', Data.boundary);
