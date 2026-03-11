@@ -1,0 +1,226 @@
+%% Begin -- solution of u_tt- c^2 Delta u = f with SEM + leapfrog
+%% u_tt - mu/ro div(grad u) = f 
+close all; clear; clc;
+
+addpath Level_0
+addpath Level_1
+addpath Level_2
+
+
+%% Initialize problem
+dati;
+
+%% Mesh generation
+xy=[]; un=[]; D=[];
+
+npdx  = nx + 1;
+npdy  = ny + 1;
+ldnov = npdx*npdy;
+mn = ldnov;
+ne = nex*ney;
+
+% GLL weights and nodes + derivatives at GLL nodes
+[x,wx] = xwlgl(npdx); [dx] = derlgl(x,npdx);
+[y,wy] = xwlgl(npdy); [dy] = derlgl(y,npdy);
+
+%nov construction = number of vertices
+[nov] = cosnov_2d(npdx,nex,npdy,ney);
+noe = nov(ldnov,ne);  %total degress of freedom
+
+% Mesh generation
+gammax = []; gammay = [];
+[xx,yy,jacx,jacy,xy,ww,ifro] = mesh_2d(xa,xb,ya,yb,cb,nex,ney,npdx,npdy,...
+                                    nov,x,wx,y,wy,gammax,gammay);
+% Plot elements
+for j = 1 : size(nov,2)
+    plot(xy(nov([1 npdx npdx*npdy npdx*npdy-nx 1],j),1),...
+        xy(nov([1 npdx npdx*npdy npdx*npdy-nx 1],j),2),'k'); 
+    hold on;
+end
+
+
+% Plot grid nodes except dirichlet ones
+for i = 1 : size(xy,1)
+    if(ifro(i)==0) 
+        plot(xy(i,1),xy(i,2),'ro'); hold on;
+    elseif(ifro(i)==31)
+        plot(xy(i,1),xy(i,2),'b*'); hold on;
+    end
+end
+                                
+                                
+%% Matrix assembling
+
+A = stiff_2d_se(npdx,nex,npdy,ney,nov,wx,dx,jacx,wy,dy,jacy);
+A = v_c^2*A; %scaled by acoustic velocity
+M = spdiags(ww,0,noe,noe);
+
+
+% Volume force
+fvol = ff(xy(:,1),xy(:,2),0).* ww;
+
+% Neumann boundary condition
+fneu = 0.*fvol;
+[fneu] = neumannbc(xa,xb,ya,yb,fneu,h,jacx,jacy,wx,wy,xy,ifro,nov,0);
+
+% Total forces : volume + boundary
+f = fvol + fneu;
+
+% Lists of internal, boundary, interface nodes. All lists are referred to
+% global ordering on Omega:
+
+% lbor: list of Dirichlet boundary nodes
+% lint: list of internal nodes
+% lintint: list of internal nodes which are internal to spectral elements
+% lgamma: list of internal nodes which are on the interface between spectral elements
+
+[ldir,lint,lintint,lgamma,ifro]=liste(ifro,nov);
+
+
+% Setting Dirichlet boundary conditions on both matrix and r.h.s
+ub=zeros(noe,1);   %lifting of the Dirichlet datum
+u0=zeros(noe,1);   %initial condition for u
+v0=zeros(noe,1);   %initial condition for u_t
+
+for i=1:noe
+    if(ifro(i)==1)
+        ub(i)=g(xy(i,1),xy(i,2),dt);
+    end
+    u0(i)=u0ex(xy(i,1),xy(i,2));
+    v0(i)=u1ex(xy(i,1),xy(i,2));
+end
+
+% rhs leap-frog
+b = (M-0.5*dt^2*A)*u0 + dt*M*v0  + 0.5*dt^2*f;
+
+% set Dirichlet conditions
+% Reduce the linear system and solve only for Internal + Neumann nodes
+
+
+if ~isempty(ldir)
+    b_0 = b - M*ub;
+    M0 = M;
+    for i = 1 : length(ldir)
+        M0(ldir(i),:) = 0;
+        M0(:,ldir(i)) = 0;
+        M0(ldir(i),ldir(i)) = 1;
+        b_0(ldir(i)) = 0;
+    end    
+    b = b_0;
+else
+    M0 = M;
+    
+end
+
+
+%% First step of leapfrog
+% Solve the reduced system
+u1 = M0\b;
+u1 = u1 + ub;
+
+%Apply Dirichelt boundary conditions
+% for i=1:noe
+%     if(ifro(i)==1)
+%         ub(i) = g(xy(i,1),xy(i,2),dt);
+%     end
+% end
+% ub(lint) = u1;
+
+
+if (param(8)~=0)
+    fig=figure('Name','SEM-NI solution of u_{tt} - c^2 \Delta u = f','Visible','on');
+    % old plot
+    % [ha] = plot_sem_2d(fig,'surf',nex,ney,x,xx,jacx,y,yy,jacy,xy,ww,nov,u1,param(9));
+    subplot(2,1,1)
+    scatter3(xy(:,1),xy(:,2),u1,20,u1,'filled'); view(2); colorbar;
+    xlim([xa xb]); ylim([ya yb]);  caxis([-1,1]);
+    xlabel('x'); ylabel('y'); title(['solution at time t  ', num2str(t),' s.']);
+    subplot(2,1,2)
+    xplot = [xa:0.005:xb]'; yplot = 0*xplot;
+    idx = knnsearch(xy,[xplot yplot]);
+    plot(xplot,u1(idx),'Linewidth',2,'Color','b'); colorbar;
+    ylim([-2 2]); xlim([xa xb]); caxis([-1,1]);
+    title('solution at y=0'); xlabel('x'); ylabel('p(x,t)');
+    pause(0.15);
+end
+fprintf('============================================================\n')
+fprintf('Starting time-loop ... \n');
+fprintf('============================================================\n')
+
+
+
+for t = dt : dt : T-dt
+    
+    % Volume force
+    fvol = ff(xy(:,1),xy(:,2),t).* ww;
+
+    % Neumann boundary condition
+    fneu = 0.*fvol;
+    [fneu] = neumannbc(xa,xb,ya,yb,fneu,h,jacx,jacy,wx,wy,xy,ifro,nov,t);
+
+    % Total forces : volume + boundary
+    f = fvol + fneu;
+
+    
+    fprintf('time = %5.3e \n',t);
+    % solve reduced system
+    b = (2*M - dt^2*A)*u1 - M*u0  + dt^2 * f;
+    
+    for i=1:noe
+        if(ifro(i)==1)
+            ub(i) = g(xy(i,1),xy(i,2),t+dt);
+        end
+    end
+    
+    if ~isempty(ldir)
+        b_0 = b - M*ub;
+        for i = 1 : length(ldir)
+            b_0(ldir(i)) = 0;
+        end
+        
+        b = b_0;        
+    end
+    
+    u2 = M0\b;
+    % apply dirichlet conditions
+    u2 = u2 + ub;
+    
+    % plot the solution
+    if (param(8)~=0)
+        % old plot
+        % [ha] = plot_sem_2d(fig,'surf',nex,ney,x,xx,jacx,y,yy,jacy,xy,ww,nov,u2,param(9));
+        % fast plot
+        gcp = subplot(2,1,1);
+        scatter3(xy(:,1),xy(:,2),u2,20,u2,'filled'); view(2); colorbar; %axis equal;
+        xlim([xa xb]); ylim([ya yb]);  caxis([-1,1]);
+        xlabel('x'); ylabel('y');  title(['solution at time t  ', num2str(t),' s.'])
+        gcp2 = subplot(2,1,2);
+        plot(xplot,u2(idx),'Linewidth',2,'Color','b'); colorbar;
+        ylim([-2 2]); xlim([xa xb]); caxis([-1,1]);
+        title('solution at y=0'); xlabel('x'); ylabel('p(x,t)');
+        pause(0.15);
+    end
+    
+    % update
+    u0 = u1;
+    u1 = u2;
+    
+end
+
+%% Error analysis
+% errors are evaluated at the final time
+
+if (param(4)==1)
+    [err_inf,err_h1,err_l2] = errors_2d(x,wx,dx,xx,jacx,y,wy,dy,yy,jacy,...
+        xy,ww,nov,ub,uex,uex_x,uex_y,param,T);
+    fprintf('nx=%d,nex=%d,err_inf=%11.4e, err_h1=%11.4e,err_l2=%11.4e \n',...
+        nx,nex,err_inf,err_h1,err_l2)
+end
+
+fig=figure('Name','SEM-NI solution of u_{tt} - c^2 \Delta u = f','Visible','on');
+[ha] = plot_sem_2d(fig,'surf',nex,ney,x,xx,jacx,y,yy,jacy,xy,ww,nov,ub,param(9));
+colorbar; zlim([-1,1]);
+% caxis([-1,1]);view([-37 59]);
+
+
+

@@ -1,0 +1,322 @@
+================================================================================
+  NMSA — LaTeX REPORT STYLE GUIDE
+  Reference: Homework 1 chapters (01–05_chapter.tex)
+================================================================================
+
+This file defines the writing and formatting conventions for all homework
+reports. Always read it before writing or editing any .tex file.
+
+────────────────────────────────────────────────────────────────────────────────
+1. PROJECT STRUCTURE
+────────────────────────────────────────────────────────────────────────────────
+
+ReportProject/
+├── 00_Images/
+│   ├── 00_logos/
+│   ├── HW1/
+│   │   ├── 2.1_FirstInteraction.png
+│   │   ├── 2.2_LastInteraction.png
+│   │   ├── ...
+│   └── HW2/
+│       ├── ...
+├── 01_FrontMatter/
+│   ├── 01_titlePage.tex
+│   ├── 02_abstract.tex
+│   ├── 03_summaries.tex
+│   └── 2025-HWx.pdf            ← homework assignment PDF
+├── 02_MainMatter/
+│   ├── HW1/
+│   │   ├── 01_chapter.tex      ← one section per file
+│   │   ├── 02_chapter.tex
+│   │   ├── ...
+│   │   └── 05_chapter.tex
+│   ├── HW2/
+│   │   ├── 01_chapter.tex
+│   │   └── ...
+│   └── 00_howChapter.txt       ← this style guide
+├── XX_dontTouch/               ← packages, class setup, never edit
+│   ├── 01_packages.tex
+│   ├── 02_customSetup.tex
+│   ├── 03_python&Matlab.tex
+│   ├── 04_arduinoLanguage.tex
+│   ├── 05_supercollider.tex
+│   └── 06_tikZModules.tex
+├── GDTReportClass.cls
+└── main.tex
+
+Image naming convention:
+  X.Y_Description.png
+  where X = section number, Y = subfigure number (or 0 if single figure)
+  Examples: 2.1_FirstInteraction.png, 3.1_amplitude.png, 4_Dispersion.png
+
+────────────────────────────────────────────────────────────────────────────────
+2. FILE HEADER AND ROOT DECLARATION
+────────────────────────────────────────────────────────────────────────────────
+
+Every .tex file in 02_MainMatter/ must begin with:
+
+  %! TEX root = main.tex
+
+This enables IDE compilation from any sub-file.
+
+────────────────────────────────────────────────────────────────────────────────
+3. CHAPTER AND SECTION HIERARCHY
+────────────────────────────────────────────────────────────────────────────────
+
+• Each homework is ONE \chapter{}
+  \chapter{Homework 1}   ← in 01_chapter.tex of HWx folder
+
+• Each homework point is ONE \section{}
+  \section{Weak Form and FE Discretization}
+  \section{MATLAB Solver}
+  \section{Wave Reflection at an Impedance Jump}
+
+• Sub-topics within a section use \subsection{}
+  \subsection{Strong Formulation}
+  \subsection{Weak Formulation}
+  \subsection{Numerical Results}
+
+• Inline highlighted paragraphs (no blank line after) use \paragraph{}
+  \paragraph{Internal forcing term}
+  \paragraph{Left subdomain \(x < 0.5\) — partial standing wave}
+
+• Labels follow the pattern:
+  \label{sc:HW_SECTION}    e.g. \label{sc:12}   for HW1 section 2
+  \label{eq:shortname}     e.g. \label{eq:weakform}
+  \label{fig:shortname}    e.g. \label{fig:fem_comp}
+  \label{tab:shortname}    e.g. \label{tab:l2_errors}
+
+────────────────────────────────────────────────────────────────────────────────
+4. MATHEMATICAL WRITING — CONVENTIONS
+────────────────────────────────────────────────────────────────────────────────
+
+Inline math: \( ... \) — ALWAYS, never $...$
+Display math (unnumbered): \[ ... \]
+Display math (numbered, referenced): \begin{equation} ... \end{equation}
+In general use \underline for vectors and \mathbf for matrices
+
+Notational shortcuts used throughout:
+  u'         for spatial derivative (defined explicitly on first use)
+  u'(0)      for boundary evaluation
+  \mathrm{ex}  for exact solution subscript: u_{\mathrm{ex}}
+  \mathbb{P}_1  for FE polynomial space
+  \mathcal{M}, \mathcal{A}, \mathcal{F}  for bilinear/linear forms
+  \underline{u}  for solution vector (algebraic)
+  \mathbf{A}, \mathbf{M}  for matrices
+
+Norms:
+  \|u - u_h\|_{L^2(0,L)}
+  \|u - u_h\|_{H^1(0,L)}
+  |u|_{H^2(0,L)}
+
+Physical units in text: use \SI{value}{unit} from siunitx package
+  Example: \SI{0.4}{\meter}, \SI{5\pi}{\radian\per\meter}
+
+Error rates: always display as \(\mathcal{O}(h^2)\) inline,
+  and as the formula p = \frac{\log(e_i/e_{i+1})}{\log(h_i/h_{i+1})}
+
+System of equations: use aligned inside \left\{ ... \right.
+  \begin{equation}
+  \left\{
+  \begin{aligned}
+    & \text{equation 1} \\
+    & \text{equation 2}
+  \end{aligned}
+  \right.
+  \end{equation}
+
+Piecewise functions: use cases
+  \begin{equation}
+  f(x) =
+  \begin{cases}
+    \text{value 1}, & \text{condition 1} \\
+    \text{value 2}, & \text{condition 2}
+  \end{cases}
+  \end{equation}
+
+Implications and aligned derivations: use \quad \Longrightarrow \quad
+  \(A = B \quad \Longrightarrow \quad C = D\)
+
+────────────────────────────────────────────────────────────────────────────────
+5. TEXT WRITING STYLE
+────────────────────────────────────────────────────────────────────────────────
+
+VOICE: impersonal / passive scientific English
+  CORRECT:   "The weak formulation is derived by multiplying..."
+  CORRECT:   "It is convenient to identify..."
+  INCORRECT: "We derive...", "I compute..."
+
+TENSE: present simple for derivations and results
+  "The boundary term reduces to..."
+  "The numerical results confirm..."
+
+INTRODUCTORY SENTENCES: each section/subsection opens with a full sentence
+  that contextualizes the content without using "In this section".
+  CORRECT:   "The propagation of a time-harmonic field in a heterogeneous
+              medium is considered..."
+  INCORRECT: "In this section, we consider..."
+
+TRANSITIONS between sub-results: use connectors
+  "Substituting into the previous expression yields:"
+  "Collecting all terms, the weak formulation becomes:"
+  "Therefore, ..."
+  "Hence, ..."
+  "It follows that ..."
+  "This choice preserves the structure of..."
+
+PHYSICAL INTERPRETATION subsections: always end with a \paragraph{} block
+  per distinct region or regime. Format:
+  \paragraph{Region name — physical description}
+  Followed by 2–4 sentences explaining the physics.
+
+INLINE REFERENCES: always use \ref{} and \eqref{}, never hardcode numbers
+  "...as shown in figure \ref{fig:dispersion}..."
+  "...from equation \eqref{eq:weak_form}..."
+  "...in section \ref{sc:11}..."
+  "...in chapter \ref{sc:11}..."  (if referring to the whole chapter section)
+
+────────────────────────────────────────────────────────────────────────────────
+6. FIGURES
+────────────────────────────────────────────────────────────────────────────────
+
+Single figure:
+  \begin{figure}[!htb]
+      \centering
+      \includegraphics[width=0.90\textwidth]{00_Images/HWx/X.Y_Name.png}
+      \caption{Full descriptive caption. Include: what is shown, key
+               observations, relevant parameter values.}
+      \label{fig:shortname}
+  \end{figure}
+
+Two subfigures (stacked vertically):
+  \begin{figure}[!htb]
+      \centering
+      \subfloat[Caption for subfig (a). Include observation.]
+        {\includegraphics[width=0.90\textwidth]{00_Images/HWx/X.1_Name.png}}
+      \\
+      \subfloat[Caption for subfig (b). Include observation.]
+        {\includegraphics[width=0.90\textwidth]{00_Images/HWx/X.2_Name.png}}
+      \caption{Overall caption describing both panels together with
+               full parameter list.}
+      \label{fig:shortname}
+  \end{figure}
+
+Caption style:
+  - Subfloat captions: 1–2 full sentences, describe what the panel shows
+    and the key qualitative observation
+  - Main caption: restate what is shown + full list of parameters used
+    (domain, BCs, coefficients, N)
+  - Never end a caption with a period only if it is a figure label fragment
+
+Image width: always 0.90\textwidth for single and subfloat images.
+Placement: always [!htb]
+
+────────────────────────────────────────────────────────────────────────────────
+7. TABLES
+────────────────────────────────────────────────────────────────────────────────
+
+Standard convergence table template:
+  \begin{table}[!htb]
+  \centering
+  \renewcommand{\arraystretch}{1.4}
+  \begin{tabular}{@{}cccc@{}}
+  \toprule
+  \(N\) & \(h\) & \(\|u - u_h\|_{L^2}\) & Rate \(p\) \\
+  \midrule
+  10  & \(0.1000\) & \(8.21 \times 10^{-1}\) & --- \\
+  20  & \(0.0500\) & \(2.05 \times 10^{-1}\) & \(2.04\) \\
+  ...
+  \bottomrule
+  \end{tabular}
+  \caption{Descriptive caption with context and parameter values.}
+  \label{tab:shortname}
+  \end{table}
+
+Rules:
+  - Always use booktabs (\toprule, \midrule, \bottomrule)
+  - Always \renewcommand{\arraystretch}{1.4}
+  - Use @{} to remove outer padding
+  - Scientific notation: \(a.bc \times 10^{n}\)
+  - First rate entry: always ---
+  - Column headers in math mode if they are symbols
+
+────────────────────────────────────────────────────────────────────────────────
+8. LISTS (itemize / enumerate)
+────────────────────────────────────────────────────────────────────────────────
+
+Use \begin{itemize} for unordered conceptual lists (e.g. notational
+conventions, matrix entries):
+
+  \begin{itemize}
+      \item \textbf{Term name:}
+      \[
+        M_{ij} = \int_0^L \varphi_i \varphi_j dx
+      \]
+      Explanatory sentence after the formula.
+      \item ...
+  \end{itemize}
+
+Rules:
+  - Bold the term name when listing matrix/vector entries
+  - Include the formula inside the item, not in a separate environment
+  - Follow each formula with a sentence explaining its role
+  - Max 2 nesting levels
+
+────────────────────────────────────────────────────────────────────────────────
+9. CROSS-REFERENCE DISCIPLINE
+────────────────────────────────────────────────────────────────────────────────
+
+When referring backward: "...as derived in section \ref{sc:11}..."
+When referring forward: "...which will be shown in section \ref{sc:14}..."
+When citing an equation: "...from \eqref{eq:weak_form}..."
+When citing a figure: "...in figure \ref{fig:dispersion}..."
+When citing a table: "...in table \ref{tab:l2_errors}..."
+
+NEVER write "in the previous section" without a \ref{}
+NEVER write "equation (3)" hardcoded
+
+────────────────────────────────────────────────────────────────────────────────
+10. SECTION STRUCTURE TEMPLATE (for each homework point)
+────────────────────────────────────────────────────────────────────────────────
+
+Standard flow for a computational section:
+
+  \section{Point Title}
+  \label{sc:HX_Y}
+
+  [1–2 sentence introduction contextualizing the problem]
+
+  \subsection{Problem Setup / Mathematical Setting}
+  [Define domain, BCs, parameters. Use equation for the strong form.]
+
+  \subsection{Analytical / Theoretical Derivation}
+  [Derive weak form, exact solution, reflection coefficient, etc.]
+  [Use \paragraph{} for sub-derivations (forcing, BCs, etc.)]
+
+  \subsection{Numerical Results}
+  [Describe what was run (N, parameters). Reference the figure.]
+  [The figure follows immediately after the descriptive sentence.]
+
+  \subsection{Physical Interpretation}
+  [Use \paragraph{Region/Regime — label} blocks.]
+  [One paragraph per distinct behavior, 3–5 sentences each.]
+
+────────────────────────────────────────────────────────────────────────────────
+11. WHAT NOT TO DO
+────────────────────────────────────────────────────────────────────────────────
+
+  ✗  Never use $...$ for inline math — use \( ... \)
+  ✗  Never hardcode section/equation/figure numbers
+  ✗  Never write "In this section, we..."
+  ✗  Never use "we" or "I" — always passive or impersonal
+  ✗  Never use \textbf{} inside equations
+  ✗  Never place figures with [h] alone — always [!htb]
+  ✗  Never use \\ inside text paragraphs for line breaks — use blank line
+  ✗  Never leave a subsection without at least one complete sentence before
+     the first formula
+  ✗  Never write a caption that is only a title — always a full sentence
+     with observable + parameters
+
+================================================================================
+END OF LaTeX STYLE GUIDE
+================================================================================

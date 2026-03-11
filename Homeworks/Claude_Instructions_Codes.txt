@@ -1,0 +1,288 @@
+================================================================================
+  NMSA — STYLE & STRUCTURE GUIDE
+  Homework 2: Shallow Water Equations (SEM + θ-method)
+================================================================================
+
+This file is a binding reference for all code modifications and new files.
+Always read this before writing or editing any .m file.
+
+────────────────────────────────────────────────────────────────────────────────
+1. WORKSPACE STRUCTURE
+────────────────────────────────────────────────────────────────────────────────
+
+WAVE_1D/
+├── Assembly/
+│   ├── Load.m
+│   ├── Mass.m
+│   ├── Matrix1D.m
+│   ├── Rhs1D.m
+│   └── Stiffness.m
+├── BoundaryConditions/
+│   └── BoundaryConditions.m
+├── Errors/
+│   ├── Calc_L2_H1_errors.m
+│   └── ComputeErrors.m
+├── FESpace/
+│   ├── basis_and_der_at_lgl.m   ← SEM core, never modify
+│   ├── CreateFemregion.m
+│   ├── EvalShapeBasis.m         ← kept for compatibility, unused in SEM
+│   ├── GetJacobian.m            ← SEM version, reference [-1,1]
+│   ├── Quadrature.m             ← kept for compatibility, unused in SEM
+│   └── ShapeBasis.m             ← kept for compatibility, unused in SEM
+├── MeshGeneration/
+│   └── CreateMesh.m
+├── Postprocessing/
+│   ├── PointwiseSol.m
+│   ├── PostProcessing.m
+│   └── Snapshot.m
+├── SemLib/                      ← NEVER modify any file in this folder
+│   ├── chebyshev_pol.m          polynomial evaluation: Chebyshev
+│   ├── der2cgl.m                2nd derivative matrix: CGL nodes
+│   ├── der2lgl.m                2nd derivative matrix: LGL nodes
+│   ├── dercgl.m                 derivative matrix: CGL nodes
+│   ├── derlg.m                  derivative matrix: LG nodes
+│   ├── derlgl.m                 derivative matrix: LGL nodes
+│   ├── intlag_cgl.m             integration via Lagrange interp: CGL
+│   ├── intlag_lg.m              integration via Lagrange interp: LG
+│   ├── intlag_lgl.m             integration via Lagrange interp: LGL
+│   ├── jacobi_eval.m            Jacobi polynomial evaluation
+│   ├── jacobi_pol.m             Jacobi polynomial coefficients
+│   ├── jacobi_roots.m           roots of Jacobi polynomials
+│   ├── legendre_pol.m           Legendre polynomial evaluation
+│   ├── legendre_tr_coef.m       Legendre transform coefficients
+│   ├── legendre_tr_eval.m       Legendre transform evaluation
+│   ├── legendre_tr_matrix.m     Legendre transform matrix
+│   ├── pnleg.m                  ← called by basis_and_der_at_lgl
+│   ├── pnleg_all.m              all Legendre polys up to degree n
+│   ├── pnleg1.m                 1st derivative of Legendre poly
+│   ├── pnleg2.m                 2nd derivative of Legendre poly
+│   ├── test.m                   internal test script
+│   ├── test_LGL.m               internal test script for LGL
+│   ├── xwcg.m                   nodes+weights: Chebyshev-Gauss
+│   ├── xwcgl.m                  nodes+weights: CGL
+│   ├── xwlg.m                   nodes+weights: Legendre-Gauss
+│   └── xwlgl.m                  ← called everywhere for SEM quadrature
+├── DataTest.m
+├── MainSWE.m
+└── RunMainSWE.m
+
+────────────────────────────────────────────────────────────────────────────────
+2. NUMERICAL CORE — SEM CONVENTIONS
+────────────────────────────────────────────────────────────────────────────────
+
+• Quadrature: always use xwlgl(nln) — LGL nodes on [-1,1]
+• Reference element: [-1,1]  (NOT [0,1] as in FEM/HMZ_1D)
+• Jacobian: BJ = 0.5*(x1-x0),  x_phys = 0.5*(x1+x0) + BJ*xi
+• Basis functions: basis_and_der_at_lgl(nodes_1D, nln)
+• nln = Data.p + 1  (local nodes = polynomial degree + 1)
+• NEVER use ShapeBasis / EvalShapeBasis / Quadrature in new SEM code
+• NEVER call xwcg, xwcgl, xwlg directly — always use xwlgl
+
+• Time integration: θ-method with θ = 0.5 (Crank-Nicolson)
+  (M + θ·dt·S) U^{k+1} = (M - (1-θ)·dt·S) U^k
+• Periodic BC: identify first and last DOF in both η and q blocks
+
+────────────────────────────────────────────────────────────────────────────────
+3. PLOTTING RULES — ALL PLOTS LIVE IN RunMainSWE.m ONLY
+────────────────────────────────────────────────────────────────────────────────
+
+ABSOLUTE RULE: No plot() call anywhere except RunMainSWE.m
+PostProcessing, Snapshot, PointwiseSol return DATA only — no figures.
+
+Style variables — define once at top of RunMainSWE.m, use everywhere:
+
+  fs  = 25;           % axis labels, tick labels, legend font size
+  fst = 50;           % title font size
+  lw  = 2;            % line width
+  ms  = 8;            % marker size
+  c1  = '#0072BD';    % primary color   (blue)
+  c2  = '#D95319';    % secondary color (orange)
+  c3  = '#77AC30';    % tertiary color  (green)
+
+Every figure must include:
+  xlabel('...', 'FontSize', fs)
+  ylabel('...', 'FontSize', fs)
+  title('...', 'FontSize', fst, 'FontWeight', 'bold')
+  legend('...', 'FontSize', fs, 'Location', '...')
+  grid on; box on
+  ax = gca; ax.FontSize = fs;
+  figure('Units','normalized','Position',[x y w h])
+
+Convergence plots:
+  - loglog scale
+  - Reference slope line labeled 'O(h^p)' or 'O(h^{p+1})'
+  - Annotate each rate: text(..., sprintf('p = %.2f', rate), 'FontSize', fs-2)
+  - Rate formula: rate = log(e_i/e_{i+1}) / log(h_i/h_{i+1})
+
+────────────────────────────────────────────────────────────────────────────────
+4. POSTPROCESSING FILES — TEMPLATES
+────────────────────────────────────────────────────────────────────────────────
+
+PostProcessing.m — returns struct, no plot:
+  function [solutions] = PostProcessing(Data, femregion, uh)
+      x    = femregion.dof(:,1);
+      u_ex = Data.uex(x, Data.T);
+      solutions = struct('u_ex', u_ex, 'uh', uh);
+      fprintf('============================================================\n')
+  end
+
+Snapshot.m — returns data, no plot:
+  function [x, u, u_ex] = Snapshot(femregion, uh, ~, ~, u_ex)
+      if nargin < 5, u_ex = []; end
+      x = femregion.coord(:,1);
+      u = full(uh);
+  end
+
+PointwiseSol.m — returns data, no plot:
+  function [x, u, u_ex] = PointwiseSol(femregion, uh, u_ex, ~)
+      x = femregion.coord(:,1);
+      u = full(uh);
+  end
+
+────────────────────────────────────────────────────────────────────────────────
+5. DataTest.m — FIELD CONVENTIONS
+────────────────────────────────────────────────────────────────────────────────
+
+Each test case must define ALL of the following fields:
+
+  Data.name        % string identifier e.g. 'HW2_P4'
+  Data.domain      % [x0, xL]
+  Data.boundary    % 2-char: 'PP' periodic, 'DD', 'NN', 'ND', etc.
+  Data.T           % final time
+  Data.dt          % time step
+  Data.p           % SEM polynomial degree
+
+  % Physical parameters (shallow water)
+  Data.H           % mean water depth
+  Data.g           % gravity
+  Data.c           % wave speed = sqrt(g*H)
+
+  % Initial conditions
+  Data.eta0        % @(x) free surface elevation at t=0
+  Data.q0          % @(x) discharge at t=0
+
+  % Exact solution (set to @(x,t) 0*x if unknown)
+  Data.uex         % @(x,t) exact eta
+  Data.graduex     % @(x,t) exact d(eta)/dx
+
+  % Forcing
+  Data.force       % @(x,t)  (set to @(x,t) 0*x if zero)
+
+  % Run flags — SET IN RunMainSWE.m, never hardcoded in DataTest
+  % Data.calc_errors, Data.visual_graph, Data.snapshot, Data.surf
+
+────────────────────────────────────────────────────────────────────────────────
+6. MainSWE.m — FUNCTION SIGNATURE AND STEPS
+────────────────────────────────────────────────────────────────────────────────
+
+  function [Errors, Solutions, Femregion, Data] = MainSWE(Data, nEl)
+
+  Internal steps (in order):
+    1.  CreateMesh(Data, nEl)
+    2.  CreateFemregion(Data, Region)
+    3.  Matrix1D → M (mass), B (discrete ∂_x coupling)
+    4.  Build global block system:
+          M_glob = blkdiag(M, M)
+          S_glob = [0, B; Data.g*Data.H * B^T, 0]
+    5.  Apply periodic BC to M_glob and S_glob
+    6.  U0 = [eta0(x); q0(x)]
+    7.  θ-method loop:
+          LHS     = M_glob + theta*dt*S_glob
+          RHS_mat = M_glob - (1-theta)*dt*S_glob
+          for each step: U = LHS \ (RHS_mat * U)
+    8.  PostProcessing(Data, Femregion, U_eta_final)
+    9.  ComputeErrors if Data.calc_errors
+
+  NEVER plots inside this function.
+
+────────────────────────────────────────────────────────────────────────────────
+7. RunMainSWE.m — TOP-LEVEL STRUCTURE
+────────────────────────────────────────────────────────────────────────────────
+
+  clear; close all; clc;
+
+  addpath Assembly
+  addpath BoundaryConditions
+  addpath Errors
+  addpath MeshGeneration
+  addpath FESpace
+  addpath Postprocessing
+  addpath SemLib
+
+  %% GLOBAL STYLE — edit only here
+  fs  = 25;
+  fst = 50;
+  lw  = 2;
+  ms  = 8;
+  c1  = '#0072BD';
+  c2  = '#D95319';
+  c3  = '#77AC30';
+
+  %% POINT 4 — Traveling wave: FEM solution vs exact at final time T
+  %% POINT 4 — Convergence in h (fixed p) and in p (fixed h)
+  %% POINT 5a — Reflecting wall BC
+  %% POINT 5b — Friction term
+
+────────────────────────────────────────────────────────────────────────────────
+8. FILE REPLACEMENT MAP
+────────────────────────────────────────────────────────────────────────────────
+
+Replace these WAVE_1D files with the cleaner HMZ_1D versions:
+
+  Postprocessing/PostProcessing.m   ← use HMZ_1D version (no plot, returns struct)
+  Postprocessing/Snapshot.m         ← use HMZ_1D version (returns data only)
+  Postprocessing/PointwiseSol.m     ← use HMZ_1D version (returns data only)
+  Errors/ComputeErrors.m            ← identical, either version fine
+
+Keep these WAVE_1D files unchanged (incompatible with HMZ_1D):
+
+  Assembly/*                  SEM + time-dependent, has xwlgl and Data.p
+  BoundaryConditions/*        has time parameter t
+  Errors/Calc_L2_H1_errors.m  uses xwlgl, evaluates at Data.T
+  FESpace/*                   SEM core (GetJacobian uses [-1,1] reference)
+  MeshGeneration/*            has Data.p, LGL nodes per element
+  SemLib/*                    26 library files, never touch
+
+Write from scratch for HW2:
+
+  DataTest.m      test cases HW2_P4, HW2_P5a, HW2_P5b
+  MainSWE.m       θ-method, coupled (η,q), periodic BC
+  RunMainSWE.m    all plots, all HW2 points
+
+────────────────────────────────────────────────────────────────────────────────
+9. HW2 PHYSICS REMINDER
+────────────────────────────────────────────────────────────────────────────────
+
+PDE (linearized shallow water):
+  η_t + q_x = 0          (mass conservation)
+  q_t + gH η_x = 0       (momentum)
+
+Domain: (0,L)×(0,T),  periodic BC: η(0,t)=η(L,t),  q(0,t)=q(L,t)
+
+Exact solution — right-traveling wave:
+  η(x,t) = η₀(x - c·t)
+  q(x,t) = c · η(x,t)
+  c = sqrt(gH)
+
+Reference parameters:
+  L=1,  H=1,  g=9.81,  c=sqrt(9.81),  T=0.5
+  η(x,0) = exp(-50·(x-0.5)²)
+  q(x,0) = c·η(x,0)
+
+Block system (U = [η; q]):
+  M_glob · dU/dt + S_glob · U = 0
+  M_glob = blkdiag(M, M)
+  S_glob = [0, B; gH·B^T, 0]   where B = SEM discretization of ∂_x
+
+θ-method (θ=0.5, Crank-Nicolson):
+  (M_glob + θ·dt·S_glob) U^{k+1} = (M_glob - (1-θ)·dt·S_glob) U^k
+
+Energy (conserved for θ=0.5, no friction):
+  E(t) = ∫₀ᴸ [ ½·g·η² + ½·q²/H ] dx
+
+Expected convergence (SEM degree p):
+  L² error in η:  O(h^{p+1})
+
+================================================================================
+END OF STYLE GUIDE
+================================================================================
