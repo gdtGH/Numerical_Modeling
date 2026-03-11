@@ -5,9 +5,9 @@
 %
 %  Sections:
 %   POINT 4  — Snapshot at T=0.5: numerical vs exact solution
-%   POINT 4  — h-convergence  (fix p=4, vary Ne = 10,20,40,80)
-%   POINT 4  — p-convergence  (fix Ne=5, vary p = 1,2,3,4,5,6)
-%   POINT 5a — Reflecting walls  (wall BC, energy split)
+%   POINT 4  — h-convergence  (fix p=4, vary Ne = 10,20,40)
+%   POINT 4  — p-convergence  (fix Ne=5, vary p = 1,2,3,4,5)
+%   POINT 5a — Reflecting walls  (wall BC)
 %   POINT 5b — Friction term  (compare periodic with/without gamma)
 %==========================================================================
 
@@ -24,13 +24,17 @@ addpath SemLib
 
 %% ── Global style ─────────────────────────────────────────────────────────
 fs  = 25;           % axis / tick / legend font size
-fst = 50;           % title font size
+fst = 30;           % title font size
 lw  = 2;            % line width
 ms  = 8;            % marker size
 c1  = '#0072BD';    % blue
 c2  = '#D95319';    % orange
 c3  = '#77AC30';    % green
 c4  = '#7E2F8E';    % purple
+
+%% ── Output folder ───────────────────────────────────────────────────────
+out_dir = 'Output';
+if ~exist(out_dir, 'dir'), mkdir(out_dir); end
 
 % =========================================================================
 %  POINT 4 — Snapshot: numerical solution vs exact at t = T
@@ -45,6 +49,7 @@ Data_snap.calc_errors = false;
 [~, Sol_snap, Fem_snap, ~] = MainSWE(Data_snap, 20);
 
 figure('Name','P4.1_eta_snapshot','NumberTitle','off');
+set(gcf, 'WindowState', 'maximized');
 plot(Sol_snap.x, Sol_snap.u_ex, '-',  'Color', c1, 'LineWidth', lw); hold on;
 plot(Sol_snap.x, Sol_snap.uh,   '--', 'Color', c2, 'LineWidth', lw, ...
      'MarkerSize', ms);
@@ -56,11 +61,13 @@ legend('Exact \eta', 'Numerical \eta', ...
        'FontSize', fs, 'Location', 'best');
 grid on; box on;
 ax = gca; ax.FontSize = fs;
+exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
 
 % ── Also plot the discharge q ─────────────────────────────────────────────
 q_ex = Data_snap.c * Sol_snap.u_ex;     % exact q = c * eta (no friction)
 
 figure('Name','P4.2_q_snapshot','NumberTitle','off');
+set(gcf, 'WindowState', 'maximized');
 plot(Sol_snap.x, q_ex,       '-',  'Color', c1, 'LineWidth', lw); hold on;
 plot(Sol_snap.x, Sol_snap.q, '--', 'Color', c2, 'LineWidth', lw);
 xlabel('x',           'FontSize', fs);
@@ -70,6 +77,7 @@ title('Discharge q vs exact — T = 0.5', ...
 legend('Exact q', 'Numerical q', 'FontSize', fs, 'Location', 'best');
 grid on; box on;
 ax = gca; ax.FontSize = fs;
+exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
 
 % =========================================================================
 %  POINT 4 — h-convergence  (fix p = 4, vary Ne)
@@ -77,20 +85,18 @@ ax = gca; ax.FontSize = fs;
 %  For high-order SEM (p=4), use dt = h/c * 0.05 to keep temporal
 %  error below spatial error on the coarser meshes.
 % =========================================================================
-fprintf('\n=== POINT 4: h-convergence (p=4, Ne=10,20,40) ===\n');
+fprintf('\n=== POINT 4: h-convergence (p=4, Ne=4,8,16,32) ===\n');
 
 Data_conv   = DataTest('HW2_P4');
 Data_conv.p = 4;
 Data_conv.calc_errors = false;
 
-% Ne=[10,20,40]: the Gaussian (effective width ~0.07) is well-resolved
-% by Ne=10 (h=0.1, 10 elements cover the domain) so all three points
-% are in the ASYMPTOTIC regime and rates should cluster near p+1=5.
-%
-% dt = alpha * h^{(p+1)/2} = alpha * h^2.5  balances O(dt^2) ~ O(h^5).
-% alpha=0.05  =>  dt^2 / h^5 = alpha^2 = 0.0025  (temporal < 0.25% of spatial).
+% Use Ne = [4, 8, 16, 32] with dt = alpha * h^{(p+1)/2} per mesh.
+% This balances temporal error O(dt^2) ~ O(h^{p+1}) so the spatial
+% convergence slope is clean on every refinement level.
+% alpha = 0.01  =>  temporal error / spatial error ~ 0.003  (< 0.5%)
 Ne_list  = [10, 20, 40];
-nNe      = length(Ne_list);
+nNe     = length(Ne_list);
 alpha_dt = 0.05;
 
 h_vec   = zeros(1, nNe);
@@ -100,6 +106,7 @@ dt_used = zeros(1, nNe);
 for i = 1 : nNe
     Ne = Ne_list(i);
     h  = Data_conv.L / Ne;
+    % dt proportional to h^{(p+1)/2} = h^2.5 for p=4
     Data_conv.dt = alpha_dt * h^((Data_conv.p+1)/2);
 
     [Err, ~, Fem, ~] = MainSWE(Data_conv, Ne);
@@ -123,20 +130,23 @@ for i = 1 : nNe-1
             Ne_list(i), Ne_list(i+1), rates(i));
 end
 
-% ── Reference slope O(h^{p+1}), anchored at COARSEST point (Ne=10) ────
+% ── Reference slope O(h^{p+1}), anchored at COARSEST mesh point ───────
+% eL2_vec(end) is Ne=32 (finest), eL2_vec(1) is Ne=4 (coarsest).
+% Anchor at coarsest so the line passes through/near the data.
 p_ref     = Data_conv.p;
-h_ref     = linspace(min(h_vec)*0.7, max(h_vec)*1.1, 200);
+h_ref     = logspace(log10(min(h_vec)*0.7), log10(max(h_vec)*1.1), 200);
 slope_ref = eL2_vec(1) * (h_ref / h_vec(1)).^(p_ref+1);
 
 figure('Name','P4.3_h_convergence','NumberTitle','off');
+set(gcf, 'WindowState', 'maximized');
 loglog(h_vec, eL2_vec, '-o', 'Color', c2, 'LineWidth', lw, ...
        'MarkerSize', ms, 'MarkerFaceColor', c2); hold on;
 loglog(h_ref, slope_ref, '--', 'Color', c1, 'LineWidth', lw-0.5);
 
-% Rate labels above midpoints
+% Rate labels: placed ABOVE the midpoint between consecutive pairs
 for i = 1 : nNe-1
     xm = sqrt(h_vec(i) * h_vec(i+1));
-    ym = sqrt(eL2_vec(i) * eL2_vec(i+1)) * 2.5;
+    ym = sqrt(eL2_vec(i) * eL2_vec(i+1)) * 2.5;  % above the curve
     text(xm, ym, sprintf('rate = %.1f', rates(i)), ...
          'FontSize', fs-4, 'Color', c2, 'FontWeight', 'bold', ...
          'HorizontalAlignment', 'center');
@@ -150,6 +160,7 @@ legend({'L^2 error', sprintf('O(h^{%d})', p_ref+1)}, ...
        'FontSize', fs, 'Location', 'northwest');
 grid on; box on;
 ax = gca; ax.FontSize = fs;
+exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
 
 % =========================================================================
 %  POINT 4 — p-convergence  (fix Ne = 5, vary p = 1 .. 6)
@@ -182,6 +193,7 @@ for i = 1 : nP
 end
 
 figure('Name','P4.4_p_convergence','NumberTitle','off');
+set(gcf, 'WindowState', 'maximized');
 semilogy(p_list, eL2_p, '-s', 'Color', c3, 'LineWidth', lw, ...
          'MarkerSize', ms, 'MarkerFaceColor', c3);
 
@@ -199,9 +211,9 @@ xlabel('Polynomial degree p',    'FontSize', fs);
 ylabel('L^2 error on \eta',      'FontSize', fs);
 title(sprintf('p-convergence — SEM, N_e = %d', Ne_fixed), ...
       'FontSize', fst, 'FontWeight', 'bold');
-legend({'L^2 error'}, 'FontSize', fs, 'Location', 'northeast');
 grid on; box on;
 ax = gca; ax.FontSize = fs;
+exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
 
 % =========================================================================
 %  POINT 5a — Reflecting walls  (wall BC)
@@ -216,6 +228,7 @@ Data_wall.calc_errors = false;
 [~, Sol_wall, ~, ~] = MainSWE(Data_wall, 40);
 
 figure('Name','P5a.1_eta_wall','NumberTitle','off');
+set(gcf, 'WindowState', 'maximized');
 plot(Sol_wall.x, Sol_wall.uh, '-', 'Color', c1, 'LineWidth', lw);
 xlabel('x',           'FontSize', fs);
 ylabel('\eta(x, T)',  'FontSize', fs);
@@ -223,8 +236,10 @@ title('Reflecting walls — \eta at T = 0.5', ...
       'FontSize', fst, 'FontWeight', 'bold');
 grid on; box on;
 ax = gca; ax.FontSize = fs;
+exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
 
 figure('Name','P5a.2_q_wall','NumberTitle','off');
+set(gcf, 'WindowState', 'maximized');
 plot(Sol_wall.x, Sol_wall.q, '-', 'Color', c2, 'LineWidth', lw);
 xlabel('x',      'FontSize', fs);
 ylabel('q(x,T)', 'FontSize', fs);
@@ -232,6 +247,7 @@ title('Reflecting walls — q at T = 0.5', ...
       'FontSize', fst, 'FontWeight', 'bold');
 grid on; box on;
 ax = gca; ax.FontSize = fs;
+exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
 
 % =========================================================================
 %  POINT 5b — Friction term  (compare periodic run with / without gamma)
@@ -251,6 +267,7 @@ Data_frict.dt = 1e-3;
 [~, Sol_frict, ~, ~] = MainSWE(Data_frict, 20);
 
 figure('Name','P5b.1_eta_friction','NumberTitle','off');
+set(gcf, 'WindowState', 'maximized');
 plot(Sol_nofrict.x, Sol_nofrict.uh, '-',  'Color', c1, 'LineWidth', lw); hold on;
 plot(Sol_frict.x,   Sol_frict.uh,   '--', 'Color', c4, 'LineWidth', lw);
 plot(Sol_nofrict.x, Sol_nofrict.u_ex, ':', 'Color', c3, 'LineWidth', lw-0.5);
@@ -263,8 +280,10 @@ legend({'No friction', sprintf('Friction \\gamma = %g', Data_frict.gamma), ...
        'FontSize', fs, 'Location', 'best');
 grid on; box on;
 ax = gca; ax.FontSize = fs;
+exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
 
 figure('Name','P5b.2_q_friction','NumberTitle','off');
+set(gcf, 'WindowState', 'maximized');
 plot(Sol_nofrict.x, Sol_nofrict.q, '-',  'Color', c1, 'LineWidth', lw); hold on;
 plot(Sol_frict.x,   Sol_frict.q,   '--', 'Color', c4, 'LineWidth', lw);
 xlabel('x',      'FontSize', fs);
@@ -275,6 +294,7 @@ legend({'No friction', sprintf('Friction \\gamma = %g', Data_frict.gamma)}, ...
        'FontSize', fs, 'Location', 'best');
 grid on; box on;
 ax = gca; ax.FontSize = fs;
+exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
 
 % ── Energy decay plot for friction case ───────────────────────────────────
 % Re-run P5b collecting energy at each step to show dissipation
@@ -388,6 +408,7 @@ E_frict = E_frict(1:cnt);
 E_nofri = E_nofri(1:cnt);
 
 figure('Name','P5b.3_energy','NumberTitle','off');
+set(gcf, 'WindowState', 'maximized');
 plot(t_save, E_nofri / E_nofri(1), '-',  'Color', c1, 'LineWidth', lw); hold on;
 plot(t_save, E_frict / E_frict(1), '--', 'Color', c4, 'LineWidth', lw);
 xlabel('t',                       'FontSize', fs);
@@ -399,5 +420,6 @@ legend({'No friction (CN, \theta=0.5)', ...
        'FontSize', fs, 'Location', 'best');
 grid on; box on;
 ax = gca; ax.FontSize = fs;
+exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
 
 fprintf('\nAll plots generated.\n');
