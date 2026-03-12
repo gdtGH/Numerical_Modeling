@@ -55,7 +55,7 @@ for itest = 1:length(test_cases)
     fprintf('\n=== SNAPSHOT: %s ===\n', test_labels{itest});
     fprintf('Final L2 error on eta = %.6e\n', Err_snap.L2);
 
-    figure('Name', sprintf('P4_%s_eta_snapshot', test_tags{itest}), ...
+    figure('Name', sprintf('P4.1_%s_eta_snapshot', test_tags{itest}), ...
            'NumberTitle', 'off');
     set(gcf, 'WindowState', 'maximized');
     plot(Sol_snap.x, Sol_snap.uh,  '-', 'Color', c1, 'LineWidth', lw); hold on;
@@ -69,7 +69,7 @@ for itest = 1:length(test_cases)
     ax = gca; ax.FontSize = fs;
     exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
 
-    figure('Name', sprintf('P4_%s_q_snapshot', test_tags{itest}), ...
+    figure('Name', sprintf('P4_.2%s_q_snapshot', test_tags{itest}), ...
            'NumberTitle', 'off');
     set(gcf, 'WindowState', 'maximized');
     plot(Sol_snap.x, Sol_snap.q, '-', 'Color', c3, 'LineWidth', lw); hold on;
@@ -135,7 +135,7 @@ for itest = 1:length(test_cases)
     h_ref     = logspace(log10(min(h_vec)*0.7), log10(max(h_vec)*1.1), 200);
     slope_ref = eL2_vec(1) * (h_ref / h_vec(1)).^(p_ref+1);
 
-    figure('Name', sprintf('P4_%s_h_convergence', test_tags{itest}), ...
+    figure('Name', sprintf('P4.3_%s_h_convergence', test_tags{itest}), ...
            'NumberTitle', 'off');
     set(gcf, 'WindowState', 'maximized');
     loglog(h_vec, eL2_vec, '-o', 'Color', c2, 'LineWidth', lw, ...
@@ -156,7 +156,7 @@ for itest = 1:length(test_cases)
           test_labels{itest}, p_ref, T_conv), ...
           'FontSize', fst, 'FontWeight', 'bold');
     legend({'L^2 error', sprintf('O(h^{%d})', p_ref+1)}, ...
-           'FontSize', fs, 'Location', 'northwest');
+           'FontSize', fs, 'Location', 'best');
     grid on; box on;
     ax = gca; ax.FontSize = fs;
     exportgraphics(gcf, fullfile(out_dir, [get(gcf,'Name') '.png']), 'Resolution', 150);
@@ -189,7 +189,7 @@ for itest = 1:length(test_cases)
                 p_list(i), Fem.ndof - 1, Err.L2);
     end
 
-    figure('Name', sprintf('P4_%s_p_convergence', test_tags{itest}), ...
+    figure('Name', sprintf('P4.4_%s_p_convergence', test_tags{itest}), ...
            'NumberTitle', 'off');
     set(gcf, 'WindowState', 'maximized');
     semilogy(p_list, eL2_p, '-s', 'Color', c3, 'LineWidth', lw, ...
