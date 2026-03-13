@@ -1,0 +1,331 @@
+================================================================================
+  NMSA — STYLE & STRUCTURE GUIDE
+  Homework 3: Nonlinear Shallow Water Equations (FVM — Godunov & Lax-Wendroff)
+================================================================================
+
+This file is a binding reference for all code modifications and new files.
+Always read this before writing or editing any .m file for HW3.
+
+================================================================================
+0. PARADIGM SHIFT FROM HW2
+================================================================================
+
+HW2 used: SEM spatial discretization + θ-method (Crank-Nicolson) time loop.
+           → Solves a LINEAR system at each time step (matrix inversion).
+           → Works on NODES (DOF = polynomial nodes within each element).
+
+HW3 uses: FVM spatial discretization + explicit time stepping (Forward Euler
+           with adaptive CFL-based dt).
+           → NO matrix inversion. The update is fully explicit.
+           → Works on CELL AVERAGES (one value per cell, not per node).
+           → The entire SEM infrastructure (FESpace, Assembly, SemLib,
+             MeshGeneration, BoundaryConditions) is COMPLETELY UNUSED.
+
+The FVM workspace is self-contained and independent from WAVE_1D/.
+
+================================================================================
+1. WORKSPACE STRUCTURE — FVM_SWE/
+================================================================================
+
+FVM_SWE/
+├── Solvers/
+│   ├── GodunovFlux.m          ← computes F_{i+1/2} via exact Riemann solver
+│   └── LaxWendroffFlux.m      ← 2nd-order reconstruction + Riemann solver
+├── Postprocessing/
+│   └── PlotSolution.m         ← returns plot data (h, q, x), no figure
+├── DataTest.m                 ← defines all 3 Riemann test cases
+├── MainFVM.m                  ← FVM time loop, calls flux solvers, enforces BC
+└── RunMainFVM.m               ← ALL figures, ALL test runs, ALL comparisons
+
+NO Assembly/, NO BoundaryConditions/, NO FESpace/, NO MeshGeneration/,
+NO SemLib/, NO Errors/ folder needed.
+These belong to HW2's WAVE_1D/ and must NOT be referenced.
+
+================================================================================
+2. PHYSICS REMINDER — NONLINEAR SWE
+================================================================================
+
+PDE (nonlinear shallow water in conservative form):
+  U_t + F(U)_x = 0
+
+  U = [h; q]        state vector     (h = water height, q = hu = discharge)
+
+  F(U) = [q; q^2/h + 0.5*g*h^2]    flux vector
+
+Boundary conditions: REFLECTING WALL (q = 0) at both ends x=0 and x=L.
+  → Ghost cell approach: mirror h, negate q at boundaries.
+
+Domain: (0, L) × (0, T],   L = 1,  g = 9.81
+
+No exact solution available → comparison between Godunov and Lax-Wendroff only.
+
+────────────────────────────────────────────────────────────────────────────────
+Test Cases (Riemann Problems — step initial data)
+────────────────────────────────────────────────────────────────────────────────
+
+  Test a — Dam Break:
+    h(x,0) = 1.0  if x < L/2,   h(x,0) = 0.1  if x >= L/2
+    q(x,0) = 0    everywhere
+    Expected: rarefaction wave leftward + shock wave rightward
+
+  Test b — Reverse Dam Break:
+    h(x,0) = 0.1  if x < L/2,   h(x,0) = 1.0  if x >= L/2
+    q(x,0) = 0    everywhere
+    Expected: specular of Test a
+
+  Test c — Stationary Shock (hydraulic jump):
+    h(x,0) = 1.0  if x < L/2,   h(x,0) = 0.5  if x >= L/2
+    q(x,0) = 0    everywhere
+    Expected: standing shock at interface
+
+================================================================================
+3. FVM NUMERICAL CORE — CONVENTIONS
+================================================================================
+
+Grid (uniform, M cells):
+  dx   = L / M                          cell width
+  x(i) = (i - 0.5) * dx,  i = 1..M    cell centers
+  Interfaces at x_{i-1/2} = (i-1)*dx,  x_{i+1/2} = i*dx
+
+State vector storage (2 × M matrices):
+  U(1,:) = h(1..M)    row 1 = water height at all cell centers
+  U(2,:) = q(1..M)    row 2 = discharge at all cell centers
+
+CFL condition (MANDATORY — adaptive dt):
+  c_max = max over all cells of ( |q/h| + sqrt(g*h) )
+  dt    = CFL * dx / c_max        (CFL = 0.9 recommended)
+  NEVER use a fixed dt. Recompute at every time step.
+
+FVM update (conservative, explicit):
+  U(:,i)^{n+1} = U(:,i)^n - (dt/dx) * ( F_{i+1/2} - F_{i-1/2} )
+
+  where F_{i+1/2} is a 2×1 numerical flux vector at the right interface
+  of cell i, computed by the chosen Riemann solver.
+
+Reflecting wall BC (ghost cells, applied BEFORE flux computation each step):
+  Left wall  (i=0  ghost): h_ghost = h(1),    q_ghost = -q(1)
+  Right wall (i=M+1 ghost): h_ghost = h(M),   q_ghost = -q(M)
+
+================================================================================
+4. RIEMANN SOLVER — GODUNOV (1st order)
+================================================================================
+
+Assumption: piecewise constant reconstruction → U_L = U(:,i), U_R = U(:,i+1)
+
+The exact Riemann solver for shallow water (Roe or exact):
+  Given U_L = [h_L; q_L] and U_R = [h_R; q_R], compute the intermediate
+  state U* and evaluate F(U*) at the interface.
+
+Roe-average approach (simpler to implement, acceptable for HW3):
+  u_L  = q_L / h_L,    c_L  = sqrt(g * h_L)
+  u_R  = q_R / h_R,    c_R  = sqrt(g * h_R)
+
+  Roe-averaged velocity:  u_hat = (sqrt(h_L)*u_L + sqrt(h_R)*u_R)
+                                  / (sqrt(h_L) + sqrt(h_R))
+  Roe-averaged celerity:  c_hat = sqrt(0.5*g*(h_L + h_R))
+
+  Eigenvalues:  lambda_1 = u_hat - c_hat
+                lambda_2 = u_hat + c_hat
+
+  Flux (Roe upwind):
+    F_roe = 0.5*(F(U_L) + F(U_R))
+            - 0.5*(|lambda_1|*R_1*alpha_1 + |lambda_2|*R_2*alpha_2)
+
+  where R_1, R_2 are the right eigenvectors of the Roe matrix and
+  alpha_1, alpha_2 are the wave strengths (projection of dU = U_R - U_L).
+
+ALTERNATIVE (simpler): Lax-Friedrichs numerical flux:
+    F_LF = 0.5*(F(U_L) + F(U_R)) - 0.5*(dx/dt)*(U_R - U_L)
+  This is more diffusive than Roe but correct for 1st order Godunov.
+  Use Roe unless the assignment explicitly requires exact Godunov.
+
+Function signature:
+  function [Fnum] = GodunovFlux(U_L, U_R, g)
+    % INPUT:  U_L (2x1), U_R (2x1), g (scalar)
+    % OUTPUT: Fnum (2x1) numerical flux at the interface
+
+================================================================================
+5. RIEMANN SOLVER — LAX-WENDROFF (2nd order)
+================================================================================
+
+Step 1 — Linear reconstruction at both sides of interface x_{i+1/2}:
+  U_L_recon = U(:,i)   + 0.5 * (U(:,i+1) - U(:,i))
+  U_R_recon = U(:,i+1) - 0.5 * (U(:,i+1) - U(:,i))
+
+  NOTE: as given by the homework statement (no slope limiter required).
+  NOTE: these reduce to U_{i+1/2}^- and U_{i+1/2}^+ in the notation
+        of the theory document.
+
+Step 2 — Pass reconstructed states to the Riemann solver:
+  Fnum = GodunovFlux(U_L_recon, U_R_recon, g)
+
+  The same Riemann solver (Roe or LF) is reused — only the inputs change.
+
+Function signature:
+  function [Fnum] = LaxWendroffFlux(U_L, U_R, g)
+    % INPUT:  U_L (2x1) = U(:,i), U_R (2x1) = U(:,i+1), g (scalar)
+    % OUTPUT: Fnum (2x1) numerical flux at the interface
+
+  Internally calls GodunovFlux with the reconstructed states.
+
+================================================================================
+6. DataTest.m — FIELD CONVENTIONS FOR HW3
+================================================================================
+
+Each test case is a struct with the following fields:
+
+  Data.name       % string: 'HW3_DamBreak' | 'HW3_RevDamBreak' | 'HW3_Shock'
+  Data.domain     % [0, L] — always [0, 1]
+  Data.T          % final time
+  Data.M          % number of FVM cells (e.g. 200)
+  Data.CFL        % CFL number (e.g. 0.9)
+  Data.g          % gravity = 9.81
+
+  Data.h0         % @(x) initial water height
+  Data.q0         % @(x) initial discharge  (= 0 everywhere for Riemann tests)
+
+  % Run flags
+  Data.scheme     % 'godunov' | 'laxwendroff' | 'both'
+  Data.visual     % true/false — enable animation (set in RunMainFVM.m)
+
+DIFFERENCES FROM HW2:
+  - NO Data.p      (no polynomial degree — cells are constant)
+  - NO Data.H      (no linearization reference depth)
+  - NO Data.eta0   (replaced by Data.h0)
+  - NO Data.uex    (no exact solution available)
+  - NO Data.force  (no source term)
+  - NO Data.boundary (BC is always reflecting wall, hardcoded in MainFVM)
+  - dt is NOT set in DataTest — it is computed adaptively inside MainFVM
+
+================================================================================
+7. MainFVM.m — FUNCTION SIGNATURE AND INTERNAL STEPS
+================================================================================
+
+  function [Solutions] = MainFVM(Data, scheme)
+
+  scheme: 'godunov' or 'laxwendroff'
+
+  Internal steps (in order):
+
+    1.  Build uniform grid:
+          dx = (Data.domain(2)-Data.domain(1)) / Data.M
+          x  = cell centers (column vector, M×1)
+
+    2.  Initialize state matrix U (2×M):
+          U(1,:) = Data.h0(x)'
+          U(2,:) = Data.q0(x)'
+
+    3.  Time loop: t = 0, advance until t >= Data.T
+          a. Compute local wave speeds: c_max = max(|u| + c) over all cells
+          b. Compute adaptive dt = Data.CFL * dx / c_max
+             Clip dt so that t+dt does not exceed Data.T
+          c. Apply ghost cells (reflecting BC)
+          d. For each interface i = 1..M+1 (including boundary interfaces):
+               if scheme == 'godunov':    F_{i+1/2} = GodunovFlux(...)
+               if scheme == 'laxwendroff': F_{i+1/2} = LaxWendroffFlux(...)
+          e. Update:  U(:,i) = U(:,i) - (dt/dx)*(F_{i+1/2} - F_{i-1/2})
+          f. t = t + dt
+
+    4.  Store output:
+          Solutions.x  = x
+          Solutions.h  = U(1,:)'
+          Solutions.q  = U(2,:)'
+          Solutions.u  = U(2,:)' ./ U(1,:)'
+          Solutions.t  = t
+
+  NEVER plots inside this function.
+  NEVER uses a fixed dt.
+  NEVER inverts a matrix.
+
+================================================================================
+8. RunMainFVM.m — TOP-LEVEL STRUCTURE
+================================================================================
+
+  clear; close all; clc;
+
+  addpath Solvers
+  addpath Postprocessing
+
+  %% GLOBAL STYLE — define once, use everywhere
+  fs  = 25;
+  fst = 50;
+  lw  = 2;
+  ms  = 8;
+  c1  = '#0072BD';    % Godunov     (blue)
+  c2  = '#D95319';    % Lax-Wendroff (orange)
+  c3  = '#77AC30';    % reference / exact (green, if available)
+
+  %% TEST a — Dam Break
+  %% TEST b — Reverse Dam Break
+  %% TEST c — Stationary Shock
+
+  For each test:
+    - Run MainFVM with 'godunov'
+    - Run MainFVM with 'laxwendroff'
+    - Plot h(x,T) for both schemes on the same figure
+    - Plot q(x,T) or u(x,T) for both schemes on the same figure
+    - Comment physically on shock vs rarefaction, diffusion, oscillations
+
+================================================================================
+9. PLOTTING RULES (INHERITED FROM HW2, ENFORCED FOR HW3)
+================================================================================
+
+ABSOLUTE RULE: No plot() call anywhere except RunMainFVM.m.
+All solver files and MainFVM return DATA only — no figures.
+
+Every figure must include:
+  xlabel('...', 'FontSize', fs)
+  ylabel('...', 'FontSize', fs)
+  title('...', 'FontSize', fst, 'FontWeight', 'bold')
+  legend('...', 'FontSize', fs, 'Location', '...')
+  grid on; box on
+  ax = gca; ax.FontSize = fs;
+  figure('Units','normalized','Position',[x y w h])
+
+Suggested figure layout per test case:
+  Left panel:  h(x) at time T  →  ylabel 'Water height h(x,T)'
+  Right panel: q(x) at time T  →  ylabel 'Discharge q(x,T)'
+  Both panels: Godunov (c1) and Lax-Wendroff (c2) on same axes.
+
+================================================================================
+10. REFERENCE CODES FROM REPOSITORY (DO NOT COPY — USE AS TEMPLATE ONLY)
+================================================================================
+
+Codes/FD_1D_BURGER.m
+  → MOST RELEVANT. Solves u_t + F(u)_x = 0 (Burgers, scalar, nonlinear).
+  → flag=1: Lax-Friedrichs flux — structural template for GodunovFlux.
+  → flag=2: Lax-Wendroff flux   — structural template for LaxWendroffFlux.
+  → The inner time loop and flux-difference update are the direct prototype
+    for MainFVM's time loop, extended from scalar to 2-component vector.
+
+Codes/FD_1D_WAVE.m
+  → Secondary reference. Solves a 2×2 linear hyperbolic system.
+  → Shows how to handle a vector state [w1; w2] in MATLAB.
+  → NOT directly applicable (linear, no Riemann solver).
+
+Codes/FD_1D_HYP.m
+  → Tertiary reference. CFL structure and extrapolation BC for scalar case.
+  → Useful for verifying adaptive dt and boundary treatment patterns.
+
+ALL OTHER CODES (FEM_1D/, HMZ_1D/, WAVE_1D/, WAVE_2D/):
+  → COMPLETELY IRRELEVANT. Never reference or import from these folders.
+
+================================================================================
+11. WHAT NOT TO DO
+================================================================================
+
+  ✗  Never use a fixed dt — always recompute from CFL condition each step
+  ✗  Never invert a matrix — the FVM update is fully explicit
+  ✗  Never call xwlgl, basis_and_der_at_lgl, or any SemLib function
+  ✗  Never reference WAVE_1D/ or SEM infrastructure files
+  ✗  Never plot inside MainFVM, GodunovFlux, or LaxWendroffFlux
+  ✗  Never store intermediate time steps unless animation is required
+  ✗  Never use a 2-char boundary string (e.g. 'NN') — BC is hardcoded
+     as reflecting wall via ghost cells, not via a general BC dispatcher
+  ✗  Never assume h > 0 without a safety check — add max(h, eps) where
+     needed to avoid division by zero in u = q/h
+  ✗  Never confuse dx (cell width = L/M) with Data.p (SEM degree, unused)
+
+================================================================================
+END OF STYLE GUIDE — HW3
+================================================================================
