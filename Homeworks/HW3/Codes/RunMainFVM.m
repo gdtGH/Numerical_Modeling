@@ -26,7 +26,7 @@ if ~exist(out_dir, 'dir'), mkdir(out_dir); end
 % GLOBAL STYLE — edit ONLY here
 fs  = 25;           % axis/tick/legend font size
 fst = 50;           % sgtitle font size
-fsb = 25;           % subplot title font size
+fsb = 32;           % subplot title font size
 lw  = 2;            % line width
 c1  = '#0072BD';    % primary   — Godunov / Standard  (blue,   solid)
 c2  = '#D95319';    % secondary — LW / Modified       (orange, dashed)
@@ -57,7 +57,7 @@ for k = 1 : numel(Tests)
     figure('Name', fig_names_1{k}, 'NumberTitle', 'off');
     set(gcf, 'WindowState', 'maximized');
 
-    sgtitle(test_titles_1{k}, 'FontSize', fst, 'FontWeight', 'bold');
+    sgtitle(test_titles_1{k}, 'FontSize', fsb, 'FontWeight', 'bold');
 
     % Left panel — h
     subplot(1, 2, 1);
@@ -65,7 +65,7 @@ for k = 1 : numel(Tests)
     plot(Sol_LW.x, Sol_LW.h, '--', 'Color', c2, 'LineWidth', lw);
     xlabel('x',         'FontSize', fs);
     ylabel('h(x, T)',   'FontSize', fs);
-    title('Water height  h', 'FontSize', fsb, 'FontWeight', 'bold');
+    title('Water height  h', 'FontSize', fst, 'FontWeight', 'bold');
     legend('Godunov (1^{st} order)', 'Lax-Wendroff (2^{nd} order)', ...
            'FontSize', fs, 'Location', 'best');
     grid on; box on; ax = gca; ax.FontSize = fs;
@@ -76,7 +76,7 @@ for k = 1 : numel(Tests)
     plot(Sol_LW.x, Sol_LW.q, '--', 'Color', c2, 'LineWidth', lw);
     xlabel('x',         'FontSize', fs);
     ylabel('q(x, T)',   'FontSize', fs);
-    title('Discharge  q', 'FontSize', fsb, 'FontWeight', 'bold');
+    title('Discharge  q', 'FontSize', fst, 'FontWeight', 'bold');
     legend('Godunov (1^{st} order)', 'Lax-Wendroff (2^{nd} order)', ...
            'FontSize', fs, 'Location', 'best');
     grid on; box on; ax = gca; ax.FontSize = fs;
@@ -114,7 +114,7 @@ for k = 1 : numel(test_idx)
     set(gcf, 'WindowState', 'maximized');
 
     sgtitle([test_titles_2{k}, '  —  Standard vs Modified Pressure'], ...
-            'FontSize', fst, 'FontWeight', 'bold');
+            'FontSize', fsb, 'FontWeight', 'bold');
 
     % Left panel — h
     subplot(1, 2, 1);
@@ -122,7 +122,7 @@ for k = 1 : numel(test_idx)
     plot(Sol_mod.x, Sol_mod.h, '--', 'Color', c2, 'LineWidth', lw);
     xlabel('x',       'FontSize', fs);
     ylabel('h(x, T)', 'FontSize', fs);
-    title('Water height  h', 'FontSize', fsb, 'FontWeight', 'bold');
+    title('Water height  h', 'FontSize', fst, 'FontWeight', 'bold');
     legend('Standard Godunov', ...
            sprintf('Modified Godunov  (h_{ref} = %g)', h_ref), ...
            'FontSize', fs, 'Location', 'best');
@@ -134,7 +134,7 @@ for k = 1 : numel(test_idx)
     plot(Sol_mod.x, Sol_mod.q, '--', 'Color', c2, 'LineWidth', lw);
     xlabel('x',       'FontSize', fs);
     ylabel('q(x, T)', 'FontSize', fs);
-    title('Discharge  q', 'FontSize', fsb, 'FontWeight', 'bold');
+    title('Discharge  q', 'FontSize', fst, 'FontWeight', 'bold');
     legend('Standard Godunov', ...
            sprintf('Modified Godunov  (h_{ref} = %g)', h_ref), ...
            'FontSize', fs, 'Location', 'best');
