@@ -6,10 +6,19 @@
 % Produces one figure per test case, each with two subplots:
 %   Left panel:  water height h(x, T)
 %   Right panel: discharge    q(x, T)
+%
+% Figures are saved as .png to out_dir following the naming convention:
+%   X.Y_Description.png   (LaTeX report image convention)
 
 clear; close all; clc;
 
 addpath Solvers
+
+%==========================================================================
+% OUTPUT DIRECTORY — images go directly into the report tree
+%==========================================================================
+out_dir = 'Output';
+if ~exist(out_dir, 'dir'), mkdir(out_dir); end
 
 %==========================================================================
 % GLOBAL STYLE — edit ONLY here, never inside solver files
@@ -17,8 +26,8 @@ addpath Solvers
 fs  = 25;           % axis/tick/legend font size
 fst = 30;           % title font size
 lw  = 2;            % line width
-c1  = '#0072BD';    % Godunov      (blue)
-c2  = '#D95319';    % Lax-Wendroff (orange)
+c1  = '#0072BD';    % Godunov       (blue)
+c2  = '#D95319';    % Lax-Wendroff  (orange)
 
 %==========================================================================
 % LOAD TEST CASES
@@ -26,12 +35,14 @@ c2  = '#D95319';    % Lax-Wendroff (orange)
 Tests = DataTest();
 
 %==========================================================================
-% TEST LABELS (for figure titles)
+% FIGURE NAMES — follow LaTeX image convention X.Y_Description.png
+% X = section number within Chapter 3,  Y = subfigure index (0 = single)
 %==========================================================================
-test_titles = {'Dam Break', 'Reverse Dam Break', 'Stationary Shock'};
+fig_names   = {'3.1_DamBreak', '3.2_RevDamBreak', '3.3_Shock'};
+test_titles = {'Dam Break',    'Reverse Dam Break', 'Stationary Shock'};
 
 %==========================================================================
-% MAIN LOOP — one figure per test
+% MAIN LOOP — one figure per test case
 %==========================================================================
 for k = 1 : numel(Tests)
 
@@ -47,9 +58,10 @@ for k = 1 : numel(Tests)
     Sol_LW = MainFVM(Data, 'laxwendroff');
 
     %----------------------------------------------------------------------
-    % Figure: two subplots side by side
+    % Figure — two subplots side by side
     %----------------------------------------------------------------------
-    fig = figure('Units', 'normalized', 'Position', [0.05, 0.15, 0.88, 0.60]);
+    figure('Name', fig_names{k}, 'NumberTitle', 'off', ...
+           'Units', 'normalized', 'Position', [0.05, 0.15, 0.88, 0.60]);
 
     % ---- Left panel: water height h(x, T) --------------------------------
     subplot(1, 2, 1);
@@ -57,11 +69,11 @@ for k = 1 : numel(Tests)
     plot(Sol_G.x,  Sol_G.h,  '-',  'Color', c1, 'LineWidth', lw); hold on;
     plot(Sol_LW.x, Sol_LW.h, '--', 'Color', c2, 'LineWidth', lw);
 
-    xlabel('x',          'FontSize', fs);
-    ylabel('h(x, T)',    'FontSize', fs);
-    title([test_titles{k}, ' — Water Height'], ...
+    xlabel('\itx',                        'FontSize', fs);
+    ylabel('\ith\rm(x, T)',               'FontSize', fs);
+    title([test_titles{k}, ' — Water Height \ith'], ...
           'FontSize', fst, 'FontWeight', 'bold');
-    legend('Godunov (1st order)', 'Lax-Wendroff (2nd order)', ...
+    legend('Godunov (1^{st} order)', 'Lax-Wendroff (2^{nd} order)', ...
            'FontSize', fs, 'Location', 'best');
     grid on; box on;
     ax = gca; ax.FontSize = fs;
@@ -72,13 +84,20 @@ for k = 1 : numel(Tests)
     plot(Sol_G.x,  Sol_G.q,  '-',  'Color', c1, 'LineWidth', lw); hold on;
     plot(Sol_LW.x, Sol_LW.q, '--', 'Color', c2, 'LineWidth', lw);
 
-    xlabel('x',          'FontSize', fs);
-    ylabel('q(x, T)',    'FontSize', fs);
-    title([test_titles{k}, ' — Discharge'], ...
+    xlabel('\itx',                        'FontSize', fs);
+    ylabel('\itq\rm(x, T)',               'FontSize', fs);
+    title([test_titles{k}, ' — Discharge \itq'], ...
           'FontSize', fst, 'FontWeight', 'bold');
-    legend('Godunov (1st order)', 'Lax-Wendroff (2nd order)', ...
+    legend('Godunov (1^{st} order)', 'Lax-Wendroff (2^{nd} order)', ...
            'FontSize', fs, 'Location', 'best');
     grid on; box on;
     ax = gca; ax.FontSize = fs;
+
+    %----------------------------------------------------------------------
+    % Save figure
+    %----------------------------------------------------------------------
+    exportgraphics(gcf, fullfile(out_dir, [get(gcf, 'Name') '.png']), ...
+                   'Resolution', 150);
+    fprintf('Saved: %s.png\n', fig_names{k});
 
 end
