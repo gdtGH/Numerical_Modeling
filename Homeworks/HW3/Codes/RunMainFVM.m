@@ -15,16 +15,17 @@ clear; close all; clc;
 addpath Solvers
 
 %==========================================================================
-% OUTPUT DIRECTORY — images go directly into the report tree
+% OUTPUT DIRECTORY
 %==========================================================================
 out_dir = 'Output';
 if ~exist(out_dir, 'dir'), mkdir(out_dir); end
 
 %==========================================================================
-% GLOBAL STYLE — edit ONLY here, never inside solver files
+% GLOBAL STYLE — edit ONLY here
 %==========================================================================
-fs  = 25;           % axis/tick/legend font size
-fst = 30;           % title font size
+fs  = 20;           % axis/tick/legend font size
+fst = 28;           % sgtitle font size
+fsb = 22;           % subplot title font size
 lw  = 2;            % line width
 c1  = '#0072BD';    % Godunov       (blue)
 c2  = '#D95319';    % Lax-Wendroff  (orange)
@@ -35,8 +36,7 @@ c2  = '#D95319';    % Lax-Wendroff  (orange)
 Tests = DataTest();
 
 %==========================================================================
-% FIGURE NAMES — follow LaTeX image convention X.Y_Description.png
-% X = section number within Chapter 3,  Y = subfigure index (0 = single)
+% FIGURE NAMES AND TITLES
 %==========================================================================
 fig_names   = {'3.1_DamBreak', '3.2_RevDamBreak', '3.3_Shock'};
 test_titles = {'Dam Break',    'Reverse Dam Break', 'Stationary Shock'};
@@ -48,6 +48,7 @@ for k = 1 : numel(Tests)
 
     Data = Tests{k};
 
+
     fprintf('\n========== Running test %d/%d: %s ==========\n', ...
             k, numel(Tests), Data.name);
 
@@ -58,10 +59,13 @@ for k = 1 : numel(Tests)
     Sol_LW = MainFVM(Data, 'laxwendroff');
 
     %----------------------------------------------------------------------
-    % Figure — two subplots side by side
+    % Figure
     %----------------------------------------------------------------------
     figure('Name', fig_names{k}, 'NumberTitle', 'off', ...
            'Units', 'normalized', 'Position', [0.05, 0.15, 0.88, 0.60]);
+
+    % Shared super-title for the whole figure
+    sgtitle(test_titles{k}, 'FontSize', fst, 'FontWeight', 'bold');
 
     % ---- Left panel: water height h(x, T) --------------------------------
     subplot(1, 2, 1);
@@ -69,10 +73,9 @@ for k = 1 : numel(Tests)
     plot(Sol_G.x,  Sol_G.h,  '-',  'Color', c1, 'LineWidth', lw); hold on;
     plot(Sol_LW.x, Sol_LW.h, '--', 'Color', c2, 'LineWidth', lw);
 
-    xlabel('\itx',                        'FontSize', fs);
-    ylabel('\ith\rm(x, T)',               'FontSize', fs);
-    title([test_titles{k}, ' — Water Height \ith'], ...
-          'FontSize', fst, 'FontWeight', 'bold');
+    xlabel('x',         'FontSize', fs);
+    ylabel('h(x, T)',   'FontSize', fs);
+    title('Water height  h', 'FontSize', fsb, 'FontWeight', 'bold');
     legend('Godunov (1^{st} order)', 'Lax-Wendroff (2^{nd} order)', ...
            'FontSize', fs, 'Location', 'best');
     grid on; box on;
@@ -84,10 +87,9 @@ for k = 1 : numel(Tests)
     plot(Sol_G.x,  Sol_G.q,  '-',  'Color', c1, 'LineWidth', lw); hold on;
     plot(Sol_LW.x, Sol_LW.q, '--', 'Color', c2, 'LineWidth', lw);
 
-    xlabel('\itx',                        'FontSize', fs);
-    ylabel('\itq\rm(x, T)',               'FontSize', fs);
-    title([test_titles{k}, ' — Discharge \itq'], ...
-          'FontSize', fst, 'FontWeight', 'bold');
+    xlabel('x',         'FontSize', fs);
+    ylabel('q(x, T)',   'FontSize', fs);
+    title('Discharge  q', 'FontSize', fsb, 'FontWeight', 'bold');
     legend('Godunov (1^{st} order)', 'Lax-Wendroff (2^{nd} order)', ...
            'FontSize', fs, 'Location', 'best');
     grid on; box on;
@@ -101,3 +103,5 @@ for k = 1 : numel(Tests)
     fprintf('Saved: %s.png\n', fig_names{k});
 
 end
+
+fprintf('\nAll plots generated and saved to: %s\n', out_dir);

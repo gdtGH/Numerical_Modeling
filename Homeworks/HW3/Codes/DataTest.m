@@ -16,7 +16,7 @@ function Tests = DataTest()
 L   = 1;       % domain length
 g   = 9.81;    % gravitational acceleration [m/s^2]
 M   = 200;     % number of FVM cells
-CFL = 0.9;     % CFL number
+CFL = 0.5;     % CFL number
 T   = 1.0;     % final time [s]
 
 %==========================================================================
