@@ -26,7 +26,7 @@ if ~exist(out_dir, 'dir'), mkdir(out_dir); end
 % GLOBAL STYLE — edit ONLY here
 fs  = 25;           % axis/tick/legend font size
 fst = 50;           % sgtitle font size
-fsb = 32;           % subplot title font size
+fsb = 25;           % subplot title font size
 lw  = 2;            % line width
 c1  = '#0072BD';    % primary   — Godunov / Standard  (blue,   solid)
 c2  = '#D95319';    % secondary — LW / Modified       (orange, dashed)
@@ -54,8 +54,8 @@ for k = 1 : numel(Tests)
     Sol_G  = MainFVM(Data, 'godunov');
     Sol_LW = MainFVM(Data, 'laxwendroff');
 
-    figure('Name', fig_names_1{k}, 'NumberTitle', 'off', ...
-           'Units', 'normalized', 'Position', [0.05, 0.15, 0.88, 0.60]);
+    figure('Name', fig_names_1{k}, 'NumberTitle', 'off');
+    set(gcf, 'WindowState', 'maximized');
 
     sgtitle(test_titles_1{k}, 'FontSize', fst, 'FontWeight', 'bold');
 
@@ -110,8 +110,8 @@ for k = 1 : numel(test_idx)
     Sol_std = MainFVM(Data, 'godunov');
     Sol_mod = MainFVM(Data, 'modified_godunov', h_ref);
 
-    figure('Name', fig_names_2{k}, 'NumberTitle', 'off', ...
-           'Units', 'normalized', 'Position', [0.05, 0.15, 0.88, 0.60]);
+    figure('Name', fig_names_2{k}, 'NumberTitle', 'off');
+    set(gcf, 'WindowState', 'maximized');
 
     sgtitle([test_titles_2{k}, '  —  Standard vs Modified Pressure'], ...
             'FontSize', fst, 'FontWeight', 'bold');
