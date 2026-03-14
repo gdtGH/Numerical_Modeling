@@ -57,7 +57,7 @@ U(2,:) = Data.q0(x)';
 h_dry    = 1e-6;
 t        = 0;
 iter     = 0;
-max_iter = 10000;
+max_iter = 50000;     % standard: ~1500 steps; modified flux near h->0: up to ~20000
 
 while t < Data.T * (1 - 1e-12)
 
