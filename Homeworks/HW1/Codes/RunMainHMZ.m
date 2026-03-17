@@ -8,27 +8,27 @@ addpath FESpace
 addpath Postprocessing
 
 %% =========================================================
-%GLOBAL STYLE — modifica solo qui
-%=========================================================
-fontsize = 25;% fontsize assi e legenda
-fontsizeT = 50;% fontsize titoli
-lw= 2; % linewidth
-c1= '#0072BD';
-c2= '#D95319';
-c3= '#77AC30';
+%  GLOBAL STYLE — modifica solo qui
+%  =========================================================
+fontsize  = 25;   % fontsize assi e legenda
+fontsizeT = 50;   % fontsize titoli
+lw        = 2;    % linewidth
+c1        = '#0072BD';
+c2        = '#D95319';
+c3        = '#77AC30';
 
 % Output folder
 out_dir = 'Output';
 if ~exist(out_dir, 'dir'), mkdir(out_dir); end
 
 %% =========================================================
-%POINT 2 — Verification and convergence
-%=========================================================
+%  POINT 2 — Verification and convergence
+%  =========================================================
 
 Data = DataTest('HW1_P2');
-Data.calc_errors= 1;
+Data.calc_errors  = 1;
 Data.eig_analysis = 0;
-Data.plot_eigvct= 0;
+Data.plot_eigvct  = 0;
 Data.visual_graph = 0;
 
 nElVec = [10, 20, 40, 80];
@@ -38,44 +38,46 @@ for i = 1:4
     [err{i}, sol{i}, fem{i}, ~] = MainHMZ(Data, nElVec(i));
 end
 
-hVec = cellfun(@(f) f.h,fem);
+hVec   = cellfun(@(f) f.h,  fem);
 eVecL2 = cellfun(@(e) e.L2, err);
 
 %% Plot — FEM vs Exact, coarse mesh (N=10)
 
-x_h= fem{1}.dof(:,1);
-u_h= real(sol{1}.uh);
+x_h  = fem{1}.dof(:,1);
+u_h  = real(sol{1}.uh);
 u_ex = real(sol{1}.u_ex);
 
 figure('Name','FEM vs Exact — coarse','NumberTitle','off');
 set(gcf, 'WindowState', 'maximized');
 plot(x_h, u_ex, '--', 'Color',c2, 'LineWidth',lw, 'DisplayName','Re(u_{ex})'); hold on;
-plot(x_h, u_h,'-','Color',c1, 'LineWidth',lw, 'DisplayName','Re(u_h)');
+plot(x_h, u_h,  '-',  'Color',c1, 'LineWidth',lw, 'DisplayName','Re(u_h)');
 xlabel('x [m]','FontSize',fontsize);
 ylabel('Pressure [Pa]','FontSize',fontsize);
 title(sprintf('FEM vs Exact Solution — N = %d (coarse mesh)', nElVec(1)),...
-'FontSize',fontsizeT,'FontWeight','bold');
+      'FontSize',fontsizeT,'FontWeight','bold');
 legend('Location','best','FontSize',fontsize);
 grid on; box on; ax=gca; ax.FontSize=fontsize;
 xlim([0 1]);
+exportgraphics(gcf, fullfile(out_dir, '2.1_FirstInteraction.png'), 'Resolution', 150);
 
 %% Plot — FEM vs Exact, fine mesh (N=80)
 
-x_h= fem{4}.dof(:,1);
-u_h= real(sol{4}.uh);
+x_h  = fem{4}.dof(:,1);
+u_h  = real(sol{4}.uh);
 u_ex = real(sol{4}.u_ex);
 
 figure('Name','FEM vs Exact — fine','NumberTitle','off');
 set(gcf, 'WindowState', 'maximized');
 plot(x_h, u_ex, '--', 'Color',c2, 'LineWidth',lw, 'DisplayName','Re(u_{ex})'); hold on;
-plot(x_h, u_h,'-','Color',c1, 'LineWidth',lw, 'DisplayName','Re(u_h)');
+plot(x_h, u_h,  '-',  'Color',c1, 'LineWidth',lw, 'DisplayName','Re(u_h)');
 xlabel('x [m]','FontSize',fontsize);
 ylabel('Pressure [Pa]','FontSize',fontsize);
 title(sprintf('FEM vs Exact Solution — N = %d (fine mesh)', nElVec(4)),...
-'FontSize',fontsizeT,'FontWeight','bold');
+      'FontSize',fontsizeT,'FontWeight','bold');
 legend('Location','best','FontSize',fontsize);
 grid on; box on; ax=gca; ax.FontSize=fontsize;
 xlim([0 1]);
+exportgraphics(gcf, fullfile(out_dir, '2.2_LastInteraction.png'), 'Resolution', 150);
 
 %% Plot — Convergence L2
 
@@ -83,40 +85,41 @@ figure('Name','Convergence L2','NumberTitle','off');
 set(gcf, 'WindowState', 'maximized');
 
 ref = hVec.^2 * (eVecL2(end)/hVec(end)^2);
-loglog(hVec, ref, '--k', 'LineWidth', 1.5, 'DisplayName','ReferenceO(h^2)');
+loglog(hVec, ref, '--k', 'LineWidth', 1.5, 'DisplayName','Reference  O(h^2)');
 hold on;
 loglog(hVec, eVecL2, '-o', 'Color',c2, 'LineWidth',lw, ...
-    'MarkerSize',8, 'MarkerFaceColor',c2, 'DisplayName','||u - u_h||_{L^2}');
+       'MarkerSize',8, 'MarkerFaceColor',c2, 'DisplayName','||u - u_h||_{L^2}');
 
 rates = log(eVecL2(1:end-1)./eVecL2(2:end)) ./ log(hVec(1:end-1)./hVec(2:end));
 for i = 1:length(rates)
     xm = sqrt(hVec(i)*hVec(i+1));
     ym = sqrt(eVecL2(i)*eVecL2(i+1)) * 1.8;
     text(xm, ym, sprintf('p = %.2f', rates(i)), ...
-        'FontSize',fontsize,'HorizontalAlignment','center',...
-        'Color',c2,'FontWeight','bold');
+         'FontSize',fontsize,'HorizontalAlignment','center',...
+         'Color',c2,'FontWeight','bold');
 end
 
-xlabel('h(mesh size)','FontSize',fontsize);
+xlabel('h  (mesh size)','FontSize',fontsize);
 ylabel('||u - u_h||_{L^2(0,1)}','FontSize',fontsize);
 title('Convergence Analysis — L^2 Norm','FontSize',fontsizeT,'FontWeight','bold');
 legend('Location','best','FontSize',fontsize);
 grid on; box on; ax=gca; ax.FontSize=fontsize;
+exportgraphics(gcf, fullfile(out_dir, '2.3_Convergence.png'), 'Resolution', 150);
 
 fprintf('\n--- L2 Convergence Rates ---\n');
 for i = 1:length(rates)
-    fprintf('%.4f -> %.4f|p = %.4f\n', hVec(i), hVec(i+1), rates(i));
+    fprintf('  %.4f -> %.4f  |  p = %.4f\n', hVec(i), hVec(i+1), rates(i));
 end
 
 %% =========================================================
-%POINT 3 — Wave reflection at impedance jump
-%=========================================================
+%  POINT 3 — Wave reflection at impedance jump
+%  =========================================================
 
 Data3 = DataTest('HW1_P3');
 Data3.visual_graph = 0;
-Data3.calc_errors= 0;
+Data3.calc_errors  = 0;
 Data3.eig_analysis = 0;
-Data3.plot_eigvct= 0;
+Data3.plot_eigvct  = 0;
 
 [~, sol3, fem3, ~] = MainHMZ(Data3, 200);
 x3 = fem3.coord(:,1);
@@ -125,22 +128,26 @@ u3 = sol3.uh;
 figure('Name','Amplitude — Point 3','NumberTitle','off');
 set(gcf, 'WindowState', 'maximized');
 plot(x3, abs(u3), '-', 'Color',c1, 'LineWidth',lw);
-xline(0.5,'--k','LineWidth',1.2,'Label','x = 0.5(\mu jump)',...
-'LabelVerticalAlignment','bottom','FontSize',fontsize,'HandleVisibility','off');
+xline(0.5,'--k','LineWidth',1.2,'Label','x = 0.5  (\mu jump)',...
+      'LabelVerticalAlignment','bottom','FontSize',fontsize-4,'HandleVisibility','off');
 xlabel('x [m]','FontSize',fontsize); ylabel('|u(x)|','FontSize',fontsize);
 title('Amplitude of the FEM Solution — Impedance Jump at x = 0.5',...
-'FontSize',fontsizeT,'FontWeight','bold');
-grid on; box on; ax=gca; ax.FontSize=fontsize; xlim([0 1]);
+      'FontSize',fontsizeT,'FontWeight','bold');
+grid on; box on; ax=gca; ax.FontSize=fontsize;
+xlim([0 1]);
+exportgraphics(gcf, fullfile(out_dir, '3.1_amplitude.png'), 'Resolution', 150);
 
 figure('Name','Phase — Point 3','NumberTitle','off');
 set(gcf, 'WindowState', 'maximized');
-plot(x3, unwrap(angle(u3)*180/pi), '-', 'Color',c2, 'LineWidth',lw);
-xline(0.5,'--k','LineWidth',1.2,'Label','x = 0.5(\mu jump)',...
-'LabelVerticalAlignment','top','FontSize',fontsize,'HandleVisibility','off');
+plot(x3, unwrap(angle(u3))*180/pi, '-', 'Color',c2, 'LineWidth',lw);
+xline(0.5,'--k','LineWidth',1.2,'Label','x = 0.5  (\mu jump)',...
+      'LabelVerticalAlignment','top','FontSize',fontsize-4,'HandleVisibility','off');
 xlabel('x [m]','FontSize',fontsize); ylabel('Phase [deg]','FontSize',fontsize);
 title('Phase of the FEM Solution — Impedance Jump at x = 0.5',...
-'FontSize',fontsizeT,'FontWeight','bold');
-grid on; box on; ax=gca; ax.FontSize=fontsize; xlim([0 1]);
+      'FontSize',fontsizeT,'FontWeight','bold');
+grid on; box on; ax=gca; ax.FontSize=fontsize;
+xlim([0 1]);
+exportgraphics(gcf, fullfile(out_dir, '3.2_phase.png'), 'Resolution', 150);
 
 %% =========================================================
 %  POINT 4 — Numerical Dispersion Analysis
@@ -152,7 +159,7 @@ Data4.calc_errors  = 0;
 Data4.eig_analysis = 0;
 Data4.plot_eigvct  = 0;
 
-nElVec4 = [10, 20, 40, 80, 160];
+nElVec4         = [10, 20, 40, 80, 160];
 hOverLambda_all = [];
 khOverK_all     = [];
 
@@ -167,6 +174,8 @@ for i = 1:length(nElVec4)
     [A_nbc, ~] = Matrix1D(Data4, Femregion);
 
     % ---- Consistent P1 mass matrix (tridiagonal) ----
+    % Matrix1D usa quadratura ai trapezi → massa lumped → k_h < k (WRONG).
+    % Massa consistente → k_h > k come richiesto dalla teoria.
     d0      = 2*h_e/3 * ones(n,1);
     d0(1)   = h_e/3;
     d0(end) = h_e/3;
@@ -179,20 +188,20 @@ for i = 1:length(nElVec4)
     A_red = A_nbc(idx, idx);
     M_red = M_nbc(idx, idx);
 
-    [~, D] = eig(full(A_red), full(M_red));
-    k2_h   = diag(D);
-    k2_h   = real(k2_h);
-    k2_h   = sort(k2_h(k2_h > 0));
-    k_h    = sqrt(k2_h);
+    [~, D]  = eig(full(A_red), full(M_red));
+    k2_h    = diag(D);
+    k2_h    = real(k2_h);
+    k2_h    = sort(k2_h(k2_h > 0));
+    k_h     = sqrt(k2_h);
 
-    n_vec  = (1:length(k_h))';
-    k_ex   = (2*n_vec - 1)*pi/2;   % exact eigenvalues for ND on (0,1)
-    lambda = 2*pi ./ k_ex;
+    n_vec   = (1:length(k_h))';
+    k_ex    = (2*n_vec - 1)*pi/2;   % exact eigenvalues ND on (0,1)
+    lambda  = 2*pi ./ k_ex;
 
     hOverLambda = h_e ./ lambda;
-    khOverK     = k_h ./ k_ex;     % should be > 1 with consistent mass
+    khOverK     = k_h ./ k_ex;      % > 1 with consistent mass
 
-    mask = hOverLambda < 0.5;
+    mask            = hOverLambda < 0.5;
     hOverLambda_all = [hOverLambda_all; hOverLambda(mask)];
     khOverK_all     = [khOverK_all;     khOverK(mask)];
 end
@@ -216,6 +225,7 @@ title('Numerical Dispersion Curve — FEM P1', 'FontSize',fontsizeT, 'FontWeight
 legend('Location','northwest', 'FontSize',fontsize);
 xlim([0 0.5]); ylim([0.99 1.15]);
 grid on; box on; ax=gca; ax.FontSize=fontsize;
+exportgraphics(gcf, fullfile(out_dir, '4_Dispersion.png'), 'Resolution', 150);
 
 %% =========================================================
 %  POINT 5 — Perfectly Matched Layer (PML)
@@ -231,22 +241,21 @@ Data5.plot_eigvct  = 0;
 x5 = fem5.coord(:,1);
 u5 = sol5.uh;
 
-% Physical domain mask (for phase comparison only)
+% Physical domain mask (for phase comparison)
 mask_phys = x5 <= 1 + 1e-10;
 x5_phys   = x5(mask_phys);
 u5_phys   = u5(mask_phys);
 
-x_PML_end = max(x5);   % = 1.2 with L_PML = 0.2
+x_PML_end = max(x5);   % = 1.2 con L_PML = 0.2
 
-% ---- Figure: Amplitude — Impedance BC (troncata a 1) vs PML (fino a 1.2) ----
-figure('Name','Amplitude — PML Analysis','NumberTitle','off');
-set(gcf, 'WindowState', 'maximized');
-
+% ---- Figure 1: Amplitude — Impedance BC (troncata a 1) vs PML (fino a 1.2) ----
 % Estende u3 alla dimensione di x5: NaN per x > 1 (non plottati)
 u3_ext = NaN(size(x5));
-u3_ext(1:length(u3)) = u3;
+u3_ext(1:length(u3)) = abs(u3);
 
-plot(x5, abs(u3_ext),   '-',  'Color',c1, 'LineWidth',lw, ...
+figure('Name','Amplitude — PML Analysis','NumberTitle','off');
+set(gcf, 'WindowState', 'maximized');
+plot(x5, u3_ext,  '-',  'Color',c1, 'LineWidth',lw, ...
      'DisplayName','Impedance BC (Point 3)');
 hold on;
 plot(x5, abs(u5), '--', 'Color',c2, 'LineWidth',lw, ...
@@ -266,18 +275,26 @@ title('Amplitude Comparison — Impedance BC vs PML', ...
 legend('Location','northeast', 'FontSize',fontsize);
 grid on; box on; ax=gca; ax.FontSize=fontsize;
 xlim([0, x_PML_end]);
+exportgraphics(gcf, fullfile(out_dir, '5.1_amplitude.png'), 'Resolution', 150);
 
-% ---- Figure 3: Phase comparison P3 vs P5, physical domain only ----
+% ---- Figure 2: Phase comparison P3 vs P5 su dominio esteso ----
+phase3_ext = NaN(size(x5));
+phase3_ext(1:length(u3)) = unwrap(angle(u3))*180/pi;
+
 figure('Name','Phase Comparison — Impedance BC vs PML','NumberTitle','off');
 set(gcf, 'WindowState', 'maximized');
-plot(x5,      unwrap(angle(u3_ext)*180/pi),      '-',  'Color',c1, 'LineWidth',lw,...
+plot(x5, phase3_ext,                      '-',  'Color',c1, 'LineWidth',lw,...
      'DisplayName','Impedance BC (Point 3)');
 hold on;
-plot(x5, unwrap(angle(u5)*180/pi), '--', 'Color',c2, 'LineWidth',lw,...
+plot(x5, unwrap(angle(u5))*180/pi,        '--', 'Color',c2, 'LineWidth',lw,...
      'DisplayName','PML (Point 5)');
 xline(0.5, '--k', 'LineWidth',1.2, ...
       'Label','x = 0.5  (\mu jump)',...
-      'LabelVerticalAlignment','bottom', 'FontSize',fontsize,...
+      'LabelVerticalAlignment','bottom', 'FontSize',fontsize-4,...
+      'HandleVisibility','off');
+xline(1.0, '--r', 'LineWidth',1.5, ...
+      'Label','x = 1  (PML interface)',...
+      'LabelVerticalAlignment','bottom', 'FontSize',fontsize-4,...
       'HandleVisibility','off');
 xlabel('x [m]', 'FontSize',fontsize);
 ylabel('Phase [deg]', 'FontSize',fontsize);
@@ -286,3 +303,4 @@ title('Phase Comparison — Impedance BC vs PML',...
 legend('Location','northwest', 'FontSize',fontsize);
 grid on; box on; ax=gca; ax.FontSize=fontsize;
 xlim([0, x_PML_end]);
+exportgraphics(gcf, fullfile(out_dir, '5.2_phase.png'), 'Resolution', 150);
