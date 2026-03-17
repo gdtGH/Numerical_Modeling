@@ -139,7 +139,7 @@ exportgraphics(gcf, fullfile(out_dir, '3.1_amplitude.png'), 'Resolution', 150);
 
 figure('Name','Phase — Point 3','NumberTitle','off');
 set(gcf, 'WindowState', 'maximized');
-plot(x3, unwrap(angle(u3))*180/pi, '-', 'Color',c2, 'LineWidth',lw);
+plot(x3, unwrap(angle(u3)*180/pi), '-', 'Color',c2, 'LineWidth',lw);
 xline(0.5,'--k','LineWidth',1.2,'Label','x = 0.5  (\mu jump)',...
       'LabelVerticalAlignment','top','FontSize',fontsize-4,'HandleVisibility','off');
 xlabel('x [m]','FontSize',fontsize); ylabel('Phase [deg]','FontSize',fontsize);
@@ -222,7 +222,7 @@ scatter(hOverLambda_all, khOverK_all, 18, 'blue', 'filled',...
 xlabel('h/\lambda  (mesh size / wavelength)', 'FontSize',fontsize);
 ylabel('k_h / k', 'FontSize',fontsize);
 title('Numerical Dispersion Curve — FEM P1', 'FontSize',fontsizeT, 'FontWeight','bold');
-legend('Location','northwest', 'FontSize',fontsize);
+legend('Location','best', 'FontSize',fontsize);
 xlim([0 0.5]); ylim([0.99 1.15]);
 grid on; box on; ax=gca; ax.FontSize=fontsize;
 exportgraphics(gcf, fullfile(out_dir, '4_Dispersion.png'), 'Resolution', 150);
@@ -272,21 +272,21 @@ xlabel('x [m]', 'FontSize',fontsize);
 ylabel('|u(x)|', 'FontSize',fontsize);
 title('Amplitude Comparison — Impedance BC vs PML', ...
       'FontSize',fontsizeT, 'FontWeight','bold');
-legend('Location','northeast', 'FontSize',fontsize);
+legend('Location','best', 'FontSize',fontsize);
 grid on; box on; ax=gca; ax.FontSize=fontsize;
 xlim([0, x_PML_end]);
 exportgraphics(gcf, fullfile(out_dir, '5.1_amplitude.png'), 'Resolution', 150);
 
 % ---- Figure 2: Phase comparison P3 vs P5 su dominio esteso ----
 phase3_ext = NaN(size(x5));
-phase3_ext(1:length(u3)) = unwrap(angle(u3))*180/pi;
+phase3_ext(1:length(u3)) = unwrap(angle(u3)*180/pi);
 
 figure('Name','Phase Comparison — Impedance BC vs PML','NumberTitle','off');
 set(gcf, 'WindowState', 'maximized');
 plot(x5, phase3_ext,                      '-',  'Color',c1, 'LineWidth',lw,...
      'DisplayName','Impedance BC (Point 3)');
 hold on;
-plot(x5, unwrap(angle(u5))*180/pi,        '--', 'Color',c2, 'LineWidth',lw,...
+plot(x5, unwrap(angle(u5)*180/pi),        '--', 'Color',c2, 'LineWidth',lw,...
      'DisplayName','PML (Point 5)');
 xline(0.5, '--k', 'LineWidth',1.2, ...
       'Label','x = 0.5  (\mu jump)',...
@@ -300,7 +300,7 @@ xlabel('x [m]', 'FontSize',fontsize);
 ylabel('Phase [deg]', 'FontSize',fontsize);
 title('Phase Comparison — Impedance BC vs PML',...
       'FontSize',fontsizeT, 'FontWeight','bold');
-legend('Location','northwest', 'FontSize',fontsize);
+legend('Location','best', 'FontSize',fontsize);
 grid on; box on; ax=gca; ax.FontSize=fontsize;
 xlim([0, x_PML_end]);
 exportgraphics(gcf, fullfile(out_dir, '5.2_phase.png'), 'Resolution', 150);
