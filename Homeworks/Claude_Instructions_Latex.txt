@@ -78,7 +78,7 @@ This enables IDE compilation from any sub-file.
 
 • Inline highlighted paragraphs (no blank line after) use \paragraph{}
   \paragraph{Internal forcing term}
-  \paragraph{Left subdomain \(x < 0.5\) — partial standing wave}
+  \paragraph{Left subdomain \(x < 0.5\): partial standing wave}
 
 • Labels follow the pattern:
   \label{sc:HW_SECTION}    e.g. \label{sc:12}   for HW1 section 2
@@ -183,30 +183,21 @@ Single figure:
   \begin{figure}[!htb]
       \centering
       \includegraphics[width=0.90\textwidth]{00_Images/HWx/X.Y_Name.png}
-      \caption{Full descriptive caption. Include: what is shown, key
-               observations, relevant parameter values.}
+      \caption{Brief descriptive caption}
       \label{fig:shortname}
   \end{figure}
 
 Two subfigures (stacked vertically):
   \begin{figure}[!htb]
       \centering
-      \subfloat[Caption for subfig (a). Include observation.]
+      \subfloat[Caption for subfig (a)]
         {\includegraphics[width=0.90\textwidth]{00_Images/HWx/X.1_Name.png}}
       \\
-      \subfloat[Caption for subfig (b). Include observation.]
+      \subfloat[Caption for subfig (b)]
         {\includegraphics[width=0.90\textwidth]{00_Images/HWx/X.2_Name.png}}
-      \caption{Overall caption describing both panels together with
-               full parameter list.}
+      \caption{Overall caption describing both panels together}
       \label{fig:shortname}
   \end{figure}
-
-Caption style:
-  - Subfloat captions: 1–2 full sentences, describe what the panel shows
-    and the key qualitative observation
-  - Main caption: restate what is shown + full list of parameters used
-    (domain, BCs, coefficients, N)
-  - Never end a caption with a period only if it is a figure label fragment
 
 Image width: always 0.90\textwidth for single and subfloat images.
 Placement: always [!htb]
