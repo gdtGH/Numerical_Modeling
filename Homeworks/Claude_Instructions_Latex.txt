@@ -289,7 +289,7 @@ Standard flow for a computational section:
   [The figure follows immediately after the descriptive sentence.]
 
   \subsection{Physical Interpretation}
-  [Use \paragraph{Region/Regime — label} blocks.]
+  [Use \paragraph{Region/Regime: label} blocks.]
   [One paragraph per distinct behavior, 3–5 sentences each.]
 
 ────────────────────────────────────────────────────────────────────────────────
@@ -300,13 +300,12 @@ Standard flow for a computational section:
   ✗  Never hardcode section/equation/figure numbers
   ✗  Never write "In this section, we..."
   ✗  Never use "we" or "I" — always passive or impersonal
-  ✗  Never use \textbf{} inside equations
+  ✗  Never use \textbf{}, \textit{} or \emph{}
   ✗  Never place figures with [h] alone — always [!htb]
   ✗  Never use \\ inside text paragraphs for line breaks — use blank line
   ✗  Never leave a subsection without at least one complete sentence before
      the first formula
-  ✗  Never write a caption that is only a title — always a full sentence
-     with observable + parameters
+  ✗  Never use —
 
 ================================================================================
 END OF LaTeX STYLE GUIDE
