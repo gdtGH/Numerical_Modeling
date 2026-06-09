@@ -1,0 +1,239 @@
+%! TEX root = main.tex
+
+\chapter{Homework 3}
+\label{sc:H3}
+
+\section{Finite Volume Approximation}
+\label{sc:31}
+
+The third homework addresses the numerical solution of the one-dimensional nonlinear Shallow Water Equations (SWE) by means of the Finite Volume Method (FVM), comparing a first-order Godunov scheme and a second-order Lax-Wendroff reconstruction.
+
+\subsection{The Mathematical Model}
+\label{ssc:311}
+
+The propagation of water waves in the shallow-water regime is governed, in its full nonlinear formulation, by a system of hyperbolic conservation laws that couples the evolution of the water height \( h(x,t) \) and the depth-averaged discharge \( q(x,t) = h(x,t)u(x,t) \), where \( u(x,t) \) denotes the depth-averaged horizontal velocity. Unlike the linearized shallow water equations treated in the previous chapter, no small-amplitude assumption is invoked here, and the full nonlinear dynamics must be retained. The governing system on the spatial domain \( (0, L) \) over the time interval \( (0, T] \), with gravitational acceleration \( g \), reads
+
+\begin{equation}
+\left\{
+\begin{aligned}
+& h_t + (hu)_x = 0 \\
+& (hu)_t + \left(hu^2 + \frac{1}{2}gh^2\right)_{x} = 0
+\end{aligned}
+\right.
+\label{eq:swe_primitive}
+\end{equation}
+
+where the first equation expresses conservation of mass and the second expresses conservation of momentum. Introducing the state vector \( \underline{U} = [h, q]^{T} \) and the flux vector \( \underline{F}(\underline{U}) \), system \eqref{eq:swe_primitive} admits the compact conservative form
+
+\begin{equation}
+\underline{U}_t + \underline{F}(\underline{U})_x = \underline{0}
+\label{eq:swe_conservative}
+\end{equation}
+
+where the two vectors are explicitly defined as
+
+\begin{equation}
+\underline{U} = 
+\begin{bmatrix} 
+h \\ 
+q 
+\end{bmatrix}, 
+\qquad 
+\underline{F}(\underline{U}) = 
+\begin{bmatrix} 
+q \\ 
+\dfrac{q^2}{h} + \dfrac{1}{2}gh^2 
+\end{bmatrix}
+\label{eq:swe_vectors}
+\end{equation}
+
+The nonlinearity of \( \underline{F} \) has a fundamental consequence on the solution structure. The propagation speed of any perturbation is no longer a fixed quantity but depends on the local values of \( h \) and \( u \): the two characteristic speeds of system \eqref{eq:swe_conservative} are \( \lambda_{1,2} = u \mp c \), where \( c = \sqrt{gh} \) is the local wave celerity. Because these speeds vary with the solution itself, characteristic curves emanating from different points can intersect in finite time, even when the initial data are smooth. At the crossing point, classical pointwise derivatives cease to exist and a shock, a physical discontinuity in both \( h \) and \( q \), forms spontaneously. Classical strong-form numerical methods based on nodal derivatives (finite differences, finite elements, spectral elements) are therefore inadequate in the vicinity of shocks: they either generate spurious non-physical oscillations or converge to weak solutions that violate the entropy condition and are thus physically incorrect. The conservative form \eqref{eq:swe_conservative} provides the correct mathematical framework, since it remains meaningful in the distributional sense across discontinuities and directly encodes the integral conservation laws from which the physical jump conditions (Rankine-Hugoniot relations) are derived.
+
+\subsection{Characteristic Structure and Hyperbolicity}
+
+The design of any upwind numerical flux requires knowledge of the characteristic 
+speeds of the system \eqref{eq:swe_conservative}. These are the eigenvalues of 
+the flux Jacobian $\mathbf{A}(U) = \partial F / \partial U$. 
+Differentiating the flux vector $F(U) = [q,\; q^2/h + \tfrac{1}{2}gh^2]^T$ 
+with respect to $U = [h, q]^T$, and expressing the result in terms of the 
+depth-averaged velocity $u = q/h$, one obtains
+%
+\begin{equation}
+    \mathbf{A}(U) 
+    = \frac{\partial F}{\partial U}
+    = \begin{pmatrix}
+        \dfrac{\partial q}{\partial h} & \dfrac{\partial q}{\partial q} \\[10pt]
+        \dfrac{\partial}{\partial h}\!\left(\dfrac{q^2}{h} + \dfrac{1}{2}gh^2\right) &
+        \dfrac{\partial}{\partial q}\!\left(\dfrac{q^2}{h} + \dfrac{1}{2}gh^2\right)
+    \end{pmatrix}
+    =
+    \begin{pmatrix}
+        0 & 1 \\
+        gh - u^2 & 2u
+    \end{pmatrix}
+    \label{eq:jacobian}
+\end{equation}
+%
+The eigenvalues of $\mathbf{A}(U)$ are found from 
+$\det(\mathbf{A} - \lambda \mathbf{I}) = 0$:
+%
+\begin{equation}
+    \lambda^2 - 2u\lambda - (gh - u^2) = 0
+    \quad\Longrightarrow\quad
+    \lambda_{1,2} = u \mp c, 
+    \qquad c = \sqrt{gh}
+    \label{eq:eigenvalues}
+\end{equation}
+%
+where $c = \sqrt{gh}$ is the local shallow-water wave celerity. Since 
+$\lambda_1 \neq \lambda_2$ for all $h > 0$, the system is strictly 
+hyperbolic in the wet domain. The two eigenvalues $\lambda_1 = u - c$ and 
+$\lambda_2 = u + c$ represent the speeds of left- and right-propagating 
+gravity waves respectively, superimposed on the advective velocity $u$.
+
+\paragraph{Physical interpretation of the characteristic speeds.}
+The sign structure of $\lambda_{1,2}$ classifies the local flow regime:
+\begin{itemize}
+    \item Subcritical flow ($|u| < c$, Froude number $\mathrm{Fr} = |u|/c < 1$): 
+    $\lambda_1 < 0 < \lambda_2$, so one wave travels leftward and one rightward. 
+    Information propagates in both directions.
+    \item Supercritical flow ($|u| > c$, $\mathrm{Fr} > 1$): both eigenvalues 
+    have the same sign, all information propagates in a single direction.
+    \item Critical flow ($|u| = c$, $\mathrm{Fr} = 1$): one eigenvalue 
+    vanishes, signaling the occurrence of a sonic point. Special care is 
+    required at sonic points, as standard Roe-type linearizations may fail to 
+    satisfy the entropy condition there; the Rusanov flux \eqref{eq:rusanov} 
+    remains robust since it does not rely on a linearization.
+\end{itemize}
+
+\noindent Because the characteristic speeds $\lambda_{1,2}$ depend on $h$ and $u$, 
+which are themselves unknowns evolving in time, characteristics emanating from 
+distinct spatial points can intersect in finite time. At the crossing point, 
+the classical solution breaks down and a shock forms spontaneously, 
+even from smooth initial data. This motivates the use of the conservative FVM 
+framework, which remains well-defined across discontinuities.
+
+\subsection{FVM Discretization}
+\label{ssc:312}
+
+The Finite Volume Method is the natural discretization framework for conservation laws in the form \eqref{eq:swe_conservative}, as it operates directly on integral cell averages rather than pointwise values, thereby preserving conservation at the discrete level and remaining well-defined across discontinuities. The spatial domain \( [0, L] \) is partitioned into \( M \) uniform cells of width \( \Delta x = L/M \). The \( i \)-th cell is the interval \( [x_{i-1/2}, x_{i+1/2}] \), with center \( x_i = (i - \tfrac{1}{2})\Delta x \) for \( i = 1, \ldots, M \). 
+%The time step \( \Delta t \) is recomputed at each iteration from the CFL stability condition, \( \Delta t = \nu\Delta x / \max_i |\lambda|_i \), with Courant number \( \nu < 1 \), ensuring stability for both schemes. 
+The time step $\Delta t$ is recomputed at every iteration from the 
+CFL stability condition. For explicit finite-volume schemes applied 
+to hyperbolic systems, the CFL condition requires that no wave travels more 
+than one cell width per time step:
+%
+\begin{equation}
+    \Delta t^n = \nu \,\frac{\Delta x}{\displaystyle\max_{i}\, S_i^n},
+    \qquad
+    S_i^n = |u_i^n| + c_i^n = \left|\frac{q_i^n}{h_i^n}\right| + \sqrt{g h_i^n}
+    \label{eq:CFL}
+\end{equation}
+%
+where $\nu \in (0,1)$ is the Courant number, set to $\nu = 0.9$ in all 
+simulations. The maximum wave speed $\max_i S_i^n$ must be evaluated at each 
+time level $t^n$ from the current numerical solution, since $h$ and $u$ evolve 
+nonlinearly and the local wave celerities $c_i = \sqrt{g h_i}$ change 
+accordingly. A fixed time step would either violate stability when fast waves 
+develop near the shock, or be unnecessarily conservative throughout the 
+simulation. The adaptive formula \eqref{eq:CFL} ensures that the CFL constraint 
+is satisfied at every time level with the largest permissible $\Delta t^n$, 
+minimizing the total number of time steps while preserving stability.
+The fundamental discrete unknown is the cell average of the state vector at time \( t^n \):
+
+\begin{equation}
+\underline{U}_i^n \approx \frac{1}{\Delta x} \int_{x_{i-1/2}}^{x_{i+1/2}} \underline{U}(x, t^n)  \mathrm{d}x
+\label{eq:cell_average}
+\end{equation}
+
+
+Integrating the conservation law \eqref{eq:swe_conservative} over the cell \( [x_{i-1/2}, x_{i+1/2}] \) and applying the divergence theorem yields, after division by \( \Delta x \), the exact integral balance
+
+\begin{equation}
+\frac{\mathrm{d}}{\mathrm{d}t} \underline{U}_i(t) = -\frac{1}{\Delta x} \left[\underline{F}\left(\underline{U}(x_{i+1/2}, t)\right) - \underline{F}\left(\underline{U}(x_{i-1/2}, t)\right)\right]
+\label{eq:fvm_continuous}
+\end{equation}
+
+Replacing the continuous interface fluxes with numerical approximations \( \underline{F}_{i+1/2}^n \) and applying a forward-Euler time step to \eqref{eq:fvm_continuous} gives the fully discrete conservative update
+
+\begin{equation}
+\underline{U}_i^{n+1} = \underline{U}_i^n - \frac{\Delta t}{\Delta x} \left[\underline{F}_{i+1/2}^n - \underline{F}_{i-1/2}^n\right]
+\label{eq:fvm_update}
+\end{equation}
+
+Equation \eqref{eq:fvm_update} expresses the key property of the FVM: the change in the cell average \( \underline{U}_i \) between two time levels depends exclusively on the numerical fluxes at the two bounding interfaces \( x_{i \pm 1/2} \). Since every interface flux entering cell \( i \) also leaves cell \( i+1 \) with the opposite sign, the total conserved quantities \( \sum_i h_i \) and \( \sum_i q_i \) are preserved to machine precision, irrespective of the spatial or temporal resolution.
+Reflecting wall boundary conditions are enforced at both endpoints through a ghost-cell approach: the ghost cells mirror the water height of the adjacent interior cell while negating the discharge, so that \( q = 0 \) is imposed at the domain boundaries consistently with the physical requirement of an impenetrable wall.
+
+\subsection{First-Order Godunov Scheme}
+\label{ssc:313}
+
+The Godunov scheme achieves first-order accuracy in both space and time by adopting the simplest consistent reconstruction of the solution within each cell: the state is assumed to be piecewise constant, equal to the cell average \( \underline{U}_i^n \) throughout the entire cell \( [x_{i-1/2}, x_{i+1/2}] \) at each time level \( t^n \). Under this assumption, the solution profile at any interface \( x_{i+1/2} \) exhibits an instantaneous jump from the left state \( \underline{U}_i^n \) to the right state \( \underline{U}_{i+1}^n \). This configuration constitutes a classical Riemann problem, whose exact solution describes the self-similar wave pattern consisting of shocks, contact discontinuities, and rarefaction fans that develops instantaneously from the initial discontinuity. The Godunov numerical flux is defined as the exact physical flux evaluated at the solution of this local Riemann problem:
+
+\begin{equation}
+\underline{F}_{i+1/2}^{\mathrm{God}} = \underline{F}\left(\underline{U}^*\left(\underline{U}_i^n, \underline{U}_{i+1}^n\right)\right)
+\label{eq:godunov_flux}
+\end{equation}
+
+%where \( \underline{U}^*(\underline{U}_L, \underline{U}_R) \) denotes the state obtained by solving the Riemann problem with left data \( \underline{U}_L \) and right data \( \underline{U}_R \), evaluated at the interface location \( x/t = 0 \). Because the Riemann problem is solved exactly, the scheme is upwind-consistent: information is transported in the correct characteristic direction, and the method automatically selects the entropy-satisfying solution even in the presence of sonic rarefactions and strong shocks. The scheme is therefore exceptionally robust and produces monotone, non-oscillatory profiles in the vicinity of discontinuities, correctly capturing both shock speeds and post-shock states. Its primary drawback is the excessive numerical dissipation inherent to the piecewise-constant reconstruction: smooth regions of the solution are smeared over \( \mathcal{O}(\Delta x) \) cells, and rarefaction fans appear artificially broadened.
+
+Since the exact solution of the Riemann problem for the nonlinear SWE requires an 
+iterative procedure, we adopt the Rusanov (local Lax-Friedrichs) approximate 
+Riemann solver, which replaces the exact Riemann solution with a dissipative 
+upwind-consistent flux. For the first-order scheme, the left and right states at 
+interface $x_{i+1/2}$ are simply the raw cell averages:
+%
+\begin{equation}
+    \underline{U}_L = \underline{U}_i^n, 
+    \qquad \underline{U}_R = \underline{U}_{i+1}^n
+\end{equation}
+%
+and the Rusanov numerical flux is defined as
+%
+\begin{equation}
+    \underline{F}^{\mathrm{Rus}}_{i+1/2} 
+    = \frac{1}{2}\Bigl[\underline{F}(\underline{U}_L) 
+    + \underline{F}(\underline{U}_R)\Bigr] 
+    - \frac{S_{i+1/2}}{2}\Bigl(\underline{U}_R - \underline{U}_L\Bigr)
+    \label{eq:rusanov}
+\end{equation}
+%
+where $S_{i+1/2}$ is the local maximum wave speed at the interface, computed as
+%
+\begin{equation}
+    S_{i+1/2} = \max\!\left(|u_i^n| + c_i^n,\; 
+    |u_{i+1}^n| + c_{i+1}^n\right),
+    \qquad c_i^n = \sqrt{g h_i^n}
+    \label{eq:Smax}
+\end{equation}
+%
+The term $-\tfrac{S_{i+1/2}}{2}(U_R - U_L)$ in \eqref{eq:rusanov} acts as a 
+numerical viscosity proportional to the jump in the state vector: it ensures 
+upwind-consistent transport by penalizing discontinuities at the rate of the 
+fastest local wave speed. The scheme is conservative by construction, since 
+$F^{\mathrm{Rus}}_{i+1/2}$ is a consistent numerical flux 
+(i.e.\ $F^{\mathrm{Rus}}(U,U) = F(U)$), and it satisfies the entropy condition 
+provided $S_{i+1/2}$ bounds all characteristic speeds from above.
+
+\subsection{Second-Order Lax-Wendroff Reconstruction}
+\label{ssc:314}
+
+The dissipation inherent to the Godunov scheme can be substantially reduced by improving the spatial accuracy of the reconstruction from first to second order. Instead of assuming a constant state within each cell, a piecewise linear reconstruction is adopted: the solution inside each cell is represented as a linear polynomial whose slope is inferred from the difference between neighboring cell averages. The reconstructed values at the left and right sides of the interface \( x_{i+1/2} \), denoted \( \underline{U}_{i+1/2}^{-} \) (approaching from cell \( i \)) and \( \underline{U}_{i+1/2}^{+} \) (approaching from cell \( i+1 \)), are obtained by extrapolating the respective cell averages to the interface:
+
+\begin{equation}
+\underline{U}_{i+1/2}^{-} = \underline{U}_i + \frac{1}{2}\left(\underline{U}_{i+1} - \underline{U}_i\right)
+\label{eq:lw_left}
+\end{equation}
+
+\begin{equation}
+\underline{U}_{i+1/2}^{+} = \underline{U}_{i+1} - \frac{1}{2}\left(\underline{U}_{i+1} - \underline{U}_i\right)
+\label{eq:lw_right}
+\end{equation}
+
+In the limit \( \underline{U}_{i+1} \to \underline{U}_i \), both reconstructed states reduce to the common cell value, recovering the Godunov piecewise-constant reconstruction as expected. For a general jump, the two reconstructed states are passed to the Riemann solver in place of the raw cell averages, yielding the second-order numerical flux
+
+\begin{equation}
+\underline{F}_{i+1/2}^{\mathrm{LW}} = \underline{F}^*\left(\underline{U}_{i+1/2}^{-}, \underline{U}_{i+1/2}^{+}\right)
+\label{eq:lw_flux}
+\end{equation}
+
+where \( \underline{F}^* \) denotes the numerical flux returned by the Riemann solver evaluated at the reconstructed interface states. The piecewise-linear reconstruction reduces the truncation error from \( \mathcal{O}(\Delta x) \) to \( \mathcal{O}(\Delta x^2) \) in smooth regions, yielding significantly sharper resolution of both smooth waves and post-shock profiles. However, the higher-order reconstruction introduces a dispersive error component: near sharp discontinuities, where the linear slope approximation is not bounded, the method may generate spurious oscillations (Gibbs-like ripples) that propagate away from the shock front. This trade-off between accuracy in smooth regions and spurious oscillations at discontinuities motivates the introduction of slope limiters such as the minmod or van Leer limiters, which are however beyond the scope of the present work.

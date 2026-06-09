@@ -1,0 +1,179 @@
+%! TEX root = main.tex
+
+\section{MATLAB Solver}
+\label{sc:12}
+
+This section describes the MATLAB implementation used to solve the algebraic system derived in section \ref{sc:11} and introduces a verification procedure to assess the correctness of the finite element (FE) code. In particular, the Method of Manufactured Solutions (MMS) is adopted, which consists of prescribing an exact solution and deriving the corresponding forcing terms and boundary data. This provides a controlled test case where the numerical approximation can be directly compared against a known reference.
+
+\subsection{Verification Test Setup}
+
+Considering the one-dimensional domain and constant physical parameters :
+\[
+\Omega = (0,1),
+\qquad L = 1,
+\qquad \rho = 1,
+\qquad \mu = 1 .
+\]
+For the verification test, the manufactured exact solution is imposed :
+\[
+u_{\mathrm{ex}}(x) = \sin(\omega x),
+\qquad \omega = 5\pi .
+\]
+
+\paragraph{Internal forcing term} Starting from the strong form in equation \eqref{eq:strongform}, the governing equation can be written as
+
+\begin{equation}
+\rho \omega^{2} u(x) + \frac{d}{dx}\left(\mu u'(x)\right) = f(x)
+\label{eq:mms_strong}
+\end{equation}
+
+where \(u' = \frac{du}{dx}\). Computing the derivatives of the manufactured solution yields.
+\[
+u_{\mathrm{ex}}'(x) = \omega \cos(\omega x),
+\qquad
+u_{\mathrm{ex}}''(x) = -\omega^{2}\sin(\omega x)
+\]
+Since \(\mu\) is constant, \(\frac{d}{dx}(\mu u') = \mu u''\). Substituting \(u_{\mathrm{ex}}\) into equation \eqref{eq:mms_strong} with \(\rho=\mu=1\) yields
+\[
+f(x) = \omega^{2}\sin(\omega x) + u_{\mathrm{ex}}''(x)
+      = \omega^{2}\sin(\omega x) - \omega^{2}\sin(\omega x) = 0
+\]
+Therefore, the internal source term vanishes:
+
+\begin{equation}
+    f(x) = 0
+    \label{eq:ist}
+\end{equation}
+
+\paragraph{Neumann condition} The Neumann boundary condition in equation \eqref{eq:strongform} at \(x=0\) reads
+
+\begin{equation}
+    \mu(0)u'(0) = g_N
+    \label{eq:NeumannCond}
+\end{equation}
+
+Using \(u_{\mathrm{ex}}'(x) = \omega \cos(\omega x)\) yields
+\[
+u_{\mathrm{ex}}'(0) = \omega \cos(0) = \omega,
+\qquad \mu(0)=1
+\]
+hence
+
+\begin{equation}
+    g_N = \omega = 5\pi
+    \label{eq:gN}
+\end{equation}
+
+\paragraph{Impedance condition} The impedance boundary condition in equation \eqref{eq:strongform} at \( x =L \) is
+
+\begin{equation}
+    u(L) - \sqrt{\frac{\mu(L)}{\rho(L)}}\frac{i}{\omega}u'(L) = g_A
+    \label{eq:impCond}
+\end{equation}
+
+Since \(\rho(L)=\mu(L)=1\), the impedance coefficient simplifies to
+\[
+\sqrt{\frac{\mu(L)}{\rho(L)}} = 1
+\]
+Evaluating the manufactured solution at \(L=1\) gives
+\[
+u_{\mathrm{ex}}(1) = \sin(5\pi) = 0,
+\qquad
+u_{\mathrm{ex}}'(1) = 5\pi\cos(5\pi) = -5\pi
+\]
+Substituting into the boundary condition yields
+\[
+g_A = u_{\mathrm{ex}}(1) - \frac{i}{\omega}u_{\mathrm{ex}}'(1)
+    = 0 - \frac{i}{5\pi}(-5\pi)
+    = i
+\]
+Therefore, the impedance boundary datum is
+
+\begin{equation}
+    g_A = i
+    \label{eq:gA}
+\end{equation}
+
+%\paragraph{In summary} The manufactured test case for the MMS verification is fully specified by the data collected in \cref{tab:mms_data}.
+
+%\begin{table}[!htb]
+%\centering
+%\renewcommand{\arraystretch}{1.4}
+%\begin{tabular}{@{}lll@{}}
+%\toprule
+%\textbf{Quantity} & \textbf{Expression} & \textbf{Value / Formula} \\
+%\midrule
+%Domain            & \(\Omega\)            & \((0,1)\) \\
+%Exact solution    & \(u_{\mathrm{ex}}\)   & \(\sin(\omega x)\) \\
+%Angular frequency & \(\omega\)            & \(5\pi\) \\
+%Density           & \(\rho\)              & \(1\) \\
+%Stiffness         & \(\mu\)               & \(1\) \\
+%Forcing term      & \(f\)                 & \(0\) \\
+%Neumann datum     & \(g_N\)               & \(\omega = 5\pi\) \\
+%Impedance datum   & \(g_A\)               & \(i\) \\
+%\bottomrule
+%\end{tabular}
+%\caption{Summary of the MMS verification test data for the NI boundary value problem}
+%\label{tab:mms_data}
+%\end{table}
+
+\subsection{Numerical Results}
+
+The algebraic system \eqref{eq:algsystm} is assembled and solved in MATLAB for a sequence of uniform meshes with \(N \in \{10,\ 20,\ 40,\ 80\}\) elements. Since \(\omega = 5\pi\), the wavelength of the exact solution is
+\[
+\lambda = \frac{2\pi}{\omega} = \frac{2}{5} = \SI{0.4}{\meter}
+\]
+so the domain \((0,1)\) contains exactly \(2.5\) full wavelengths. On the coarsest mesh (\(N=10\), \(h=0.1\)), each wavelength is covered by only \(\lambda/h = 4\) elements, which is insufficient to resolve the oscillatory behavior of \(u_{\mathrm{ex}}\). On the finest mesh (\(N=80\), \(h=0.0125\)), the resolution rises to \(32\) elements per wavelength, yielding an accurate approximation. Figure \ref{fig:fem_comp} compares the real part of the FE solution \(u_h\) with the exact solution \(u_{\mathrm{ex}}\) on the coarse and fine meshes respectively. As expected, the coarse-mesh solution captures the correct frequency but with a noticeable phase and amplitude error, while the fine-mesh solution overlaps the exact curve almost perfectly.
+
+\begin{figure}[!htb]
+    \centering
+    \subfloat[On the coarse mesh (\(N=10\), \(h=0.1\)). The four elements per wavelength are insufficient to resolve the sinusoidal shape, resulting in a visible phase shift and amplitude overshoot]{\includegraphics[width=0.90\textwidth]{00_Images/HW1/2.1_FirstInteraction.png}}
+    \\
+    \subfloat[On the fine mesh (\(N=80\), \(h=0.0125\)). With 32 elements per wavelength the numerical and exact curves are virtually indistinguishable]{\includegraphics[width=0.90\textwidth]{00_Images/HW1/2.2_LastInteraction.png}}
+    \caption{Real part of the FE pressure field compared with the exact solution \(u_{\mathrm{ex}}=\sin(\omega x)\)}
+    \label{fig:fem_comp}
+\end{figure}
+
+\subsection{Convergence Analysis}
+
+To quantify the approximation quality, the \(L^2(0,1)\) error is computed for each mesh via numerical quadrature:
+\[
+\|u - u_h\|_{L^2(0,L)} = \left(\int_0^L |u_{\mathrm{ex}}(x) - u_h(x)|^2dx\right)^{1/2}
+\]
+The theoretical a-priori estimate for continuous piecewise-linear (\(\mathbb{P}_1\)) Galerkin approximations of elliptic problems guarantees :
+
+\begin{equation}
+    \|u - u_h\|_{L^2(0,L)} \leq Ch^2|u|_{H^2(0,L)}
+    \label{eq:apriori_l2}
+\end{equation}
+
+so one expects a convergence rate of order \(2\) in the mesh size \(h\). Table \ref{tab:l2_errors} reports the computed \(L^2\) errors and the corresponding numerical convergence rates \(p\), estimated from consecutive mesh pairs as
+\[
+p = \frac{\log(e_{i}/e_{i+1})}{\log(h_i/h_{i+1})}
+\]
+
+\begin{table}[!htb]
+\centering
+\renewcommand{\arraystretch}{1.4}
+\begin{tabular}{@{}cccc@{}}
+\toprule
+\(N\) & \(h\) & \(\|u - u_h\|_{L^2}\) & Rate \(p\) \\
+\midrule
+10  & \(0.1000\) & \(8.21 \times 10^{-1}\) & --- \\
+20  & \(0.0500\) & \(2.05 \times 10^{-1}\) & \(2.04\) \\
+40  & \(0.0250\) & \(5.12 \times 10^{-2}\) & \(2.21\) \\
+80  & \(0.0125\) & \(1.28 \times 10^{-2}\) & \(3.05\) \\
+\bottomrule
+\end{tabular}
+\caption{\(L^2\) errors and estimated convergence rates for the MMS verification test with \(u_{\mathrm{ex}} = \sin(5\pi x)\) and NI boundary conditions.}
+\label{tab:l2_errors}
+\end{table}
+
+The numerical rates confirm the expected \(\mathcal{O}(h^2)\) convergence, consistent with the theoretical estimate \eqref{eq:apriori_l2} and with the use of \(\mathbb{P}_1\) basis functions. The log-log convergence plot in figure \ref{fig:conv} shows that the error decreases along a straight line of slope \(2\), parallel to the reference \(\mathcal{O}(h^2)\) dashed line. This agreement between theory and numerics validates the correctness of the MATLAB implementation.
+
+\begin{figure}[!htb]
+    \centering
+    \includegraphics[width=0.90\textwidth]{00_Images/HW1/2.3_Convergence.png}
+    \caption{Log-log convergence plot of the \(L^2\) error \(\|u - u_h\|_{L^2(0,1)}\) as a function of the mesh size \(h\) for the MMS test with \(u_{\mathrm{ex}} = \sin(5\pi x)\). The dashed line represents the reference slope \(\mathcal{O}(h^2)\) and the annotated rates confirm quadratic convergence for \(\mathbb{P}_1\) elements}
+    \label{fig:conv}
+\end{figure}

@@ -1,0 +1,126 @@
+%! TEX root = main.tex
+
+\section{Weak Form and Spectral Element Discretization}
+\label{sc:23}
+
+A variational formulation of the linearized shallow water system is derived and subsequently discretized using the Spectral Element Method (SEM), leading to a global first-order block ODE system suitable for time integration.
+
+\subsection{Function Spaces}
+
+The appropriate function space is defined to accommodate the periodic boundary conditions \(\eta(0,t) = \eta(L,t)\) and \(q(0,t) = q(L,t)\). Solutions are sought in the space of periodic functions with square-integrable first derivatives:
+\[
+V = H^1_{\mathrm{per}}(0,L) = \{ v \in H^1(0,L) : v(0) = v(L) \}
+\]
+For any \(t \in (0,T)\), it is assumed that \(\eta(\cdot,t) \in V\) and \(q(\cdot,t) \in V\). Test functions are drawn from the same space: \(v, w \in V\).
+
+\subsection{Weak Formulation}
+
+Starting from the strong form of the system:
+
+\begin{equation}
+\begin{cases}
+\eta_{t} + q_{x} = 0 \\
+q_{t} + gH\eta_{x} = 0
+\end{cases}
+\label{eq:strong_form_3}
+\end{equation}
+
+each equation is multiplied by a test function and integrated over the domain \((0,L)\):
+\[
+\int_{0}^{L} \eta_{t} v dx + \int_{0}^{L} q_{x} v dx = 0 \quad \forall v \in V
+\]
+\[
+\int_{0}^{L} q_{t} w dx + gH \int_{0}^{L} \eta_{x} w dx = 0 \quad \forall w \in V
+\]
+
+\paragraph{Boundary Treatment} Applying integration by parts to the convective term in the first equation:
+\[
+\int_{0}^{L} q_{x} v dx = [qv]_{0}^{L} - \int_{0}^{L} q v_{x} dx
+\]
+Since both \(q\) and \(v\) belong to \(V\), the boundary term vanishes exactly by the periodicity constraint:
+\[
+[qv]_{0}^{L} = q(L)v(L) - q(0)v(0) = 0
+\]
+For the continuous Galerkin SEM with periodic basis functions, it is standard to retain the spatial derivatives on the trial functions. The weak formulation therefore reads: find \(\eta, q \in V\) such that for all \(v, w \in V\),
+
+\begin{equation}
+\begin{cases}
+\displaystyle \int_{0}^{L} \eta_{t} v dx + \int_{0}^{L} q_{x} v dx = 0 \\[6pt]
+\displaystyle \int_{0}^{L} q_{t} w dx + gH \int_{0}^{L} \eta_{x} w dx = 0
+\end{cases}
+\end{equation}
+
+\subsection{Spectral Element Discretization}
+
+\paragraph{Mesh and Element Partition} The domain \(\Omega = (0,L)\) is partitioned into \(N_e\) non-overlapping elements \(\Omega_e = [x_{e-1}, x_e]\). Each element is mapped to the reference element \([-1, 1]\) via an affine transformation.
+
+\paragraph{Basis Functions} A finite-dimensional subspace \(V_h \subset V\) is introduced. In SEM, the basis functions \(\phi_j(x)\) are piecewise continuous polynomials of degree \(N\), specifically Lagrange polynomials constructed over Gauss-Lobatto-Legendre (GLL) nodes. The continuous solutions are approximated as:
+\[
+\eta(x,t) \approx \eta_h(x,t) = \sum_{j=1}^{N_{\mathrm{dof}}} \eta_j(t) \phi_j(x), \qquad q(x,t) \approx q_h(x,t) = \sum_{j=1}^{N_{\mathrm{dof}}} q_j(t) \phi_j(x)
+\]
+where \(N_{\mathrm{dof}}\) is the total number of global degrees of freedom, with the periodic assembly mapping the last node to the first.
+
+\subsection{Galerkin System and Matrix Assembly}
+
+Substituting the discrete approximations and choosing \(v = w = \phi_i(x)\), the semi-discrete system becomes:
+\[
+\sum_{j} \dot{\eta}_j \int_{0}^{L} \phi_j \phi_i dx + \sum_{j} q_j \int_{0}^{L} \phi_j' \phi_i dx = 0
+\]
+\[
+\sum_{j} \dot{q}_j \int_{0}^{L} \phi_j \phi_i dx + gH \sum_{j} \eta_j \int_{0}^{L} \phi_j' \phi_i dx = 0
+\]
+The global mass matrix \(\mathbf{M}\) and the first-derivative matrix \(\mathbf{D}\) are defined by:
+\[
+M_{ij} = \int_{0}^{L} \phi_i \phi_j dx, \qquad D_{ij} = \int_{0}^{L} \phi_i \phi_j' dx
+\]
+
+\paragraph{Note on GLL Quadrature} In SEM, integrals are evaluated using GLL quadrature. The discrete orthogonality property of the Lagrange basis at the GLL nodes renders \(\mathbf{M}\) diagonal (lumped), which is advantageous for time integration. Introducing the global coefficient vectors:
+\[
+\underline{\eta}(t) =
+\begin{bmatrix}
+\eta_1(t) \\ \vdots \\ \eta_{N_{\mathrm{dof}}}(t)
+\end{bmatrix},
+\qquad
+\underline{q}(t) =
+\begin{bmatrix}
+q_1(t) \\ \vdots \\ q_{N_{\mathrm{dof}}}(t)
+\end{bmatrix}
+\]
+the semi-discrete system takes the compact matrix form:
+
+\begin{align}
+&\mathbf{M}\dot{\underline{\eta}}(t) + \mathbf{D}\underline{q}(t) = \underline{0} \label{eq:semidiscrete_eta} \\
+&\mathbf{M}\dot{\underline{q}}(t) + gH\mathbf{D}\underline{\eta}(t) = \underline{0} \label{eq:semidiscrete_q}
+\end{align}
+
+\subsection{Final Block System}
+
+Stacking the unknown vectors into the global state vector \(\underline{U} = \begin{bmatrix} \underline{\eta} \\ \underline{q} \end{bmatrix}\), the coupled system \eqref{eq:semidiscrete_eta}-\eqref{eq:semidiscrete_q} is cast into the block matrix form:
+
+\begin{equation}
+\begin{bmatrix} \mathbf{M} & \mathbf{0} \\ \mathbf{0} & \mathbf{M} \end{bmatrix}
+\begin{bmatrix} \dot{\underline{\eta}} \\ \dot{\underline{q}} \end{bmatrix}
+= - \begin{bmatrix} \mathbf{0} & \mathbf{D} \\ gH\mathbf{D} & \mathbf{0} \end{bmatrix}
+\begin{bmatrix} \underline{\eta} \\ \underline{q} \end{bmatrix}
+\label{eq:block_system_explicit}
+\end{equation}
+
+Defining the global block matrices:
+
+\begin{equation}
+\mathbf{\mathcal{M}} = \begin{bmatrix} \mathbf{M} & \mathbf{0} \\ \mathbf{0} & \mathbf{M} \end{bmatrix}, \qquad
+\mathbf{\mathcal{S}} = \begin{bmatrix} \mathbf{0} & \mathbf{D} \\ gH\mathbf{D} & \mathbf{0} \end{bmatrix}
+\label{eq:block_matrices}
+\end{equation}
+
+the target semi-discrete first-order ODE system is recovered:
+
+\begin{equation}
+\mathbf{\mathcal{M}} \dot{\underline{U}} + \mathbf{\mathcal{S}} \underline{U} = \mathbf{0}
+\label{eq:block_ode}
+\end{equation}
+
+Here, \(\mathbf{\mathcal{M}}\) is symmetric and positive definite (diagonal under GLL quadrature), while \(\mathbf{\mathcal{S}}\) encodes the anti-symmetric spatial derivative operator scaled by the physical parameters.
+
+% REMARK : USEFUL FOR ORAL EXAMINATION %
+% Regarding the properties of \(\mathbf{D}\): under periodic boundary conditions, the derivative matrix \(\mathbf{D}\) is skew-symmetric (\(\mathbf{D}^T = -\mathbf{D}\)) in the exact integration limit. This skew-symmetry is directly linked to the energy conservation established in section \ref{sc:22}. Furthermore, the diagonal structure of \(\mathbf{M}\) under GLL quadrature avoids the inversion of a dense system, making the evaluation of \(\dot{\underline{U}} = -\mathbf{\mathcal{M}}^{-1}\mathbf{\mathcal{S}}\underline{U}\) computationally efficient.

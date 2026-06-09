@@ -1,0 +1,7 @@
+How to Write Chapters:
+1. Write each chapter in a separate file for better organization and maintainability.
+2. Include each chapter in main.tex using \input{} or \include{}.
+
+Note: Remember to add the following line at the beginning of every chapter file to ensure correct compilation in multi-file projects:
+
+%! TEX root = main.tex  % Specifies the main document file for multi-file projects

@@ -1,0 +1,135 @@
+%! TEX root = main.tex
+
+\section{MATLAB Solver}
+\label{sc:24}
+
+The semi-discrete block system derived in section \ref{sc:23} is advanced in time by means of the Crank-Nicolson scheme. The implementation is validated against the exact traveling-wave solution associated with the Gaussian initial data prescribed by the homework assignment. Accuracy is assessed through direct solution snapshots, \(h\)-refinement and \(p\)-enrichment convergence studies.
+
+\subsection{Numerical Setup and Time Integration}
+
+The numerical experiments are performed on the interval \((0,L)\) with
+\[
+L = \SI{1}{\meter}, \qquad H = \SI{1}{\meter}, \qquad g = \SI{9.81}{\meter\per\second\squared}
+\]
+yielding the wave speed
+
+\begin{equation}
+c = \sqrt{gH} = \sqrt{9.81}\ \si{\meter\per\second}
+\label{eq:wave_speed}
+\end{equation}
+
+and a final time \(T = \SI{0.5}{\second}\). The initial conditions are the Gaussian pulse prescribed by the assignment:
+
+\begin{equation}
+\eta_0(x) = e^{-50(x-0.5)^2}, \qquad q_0(x) = c  e^{-50(x-0.5)^2}
+\label{eq:gaussian_ic}
+\end{equation}
+
+Since the datum \eqref{eq:gaussian_ic} satisfies the compatibility condition \(q_0 = c\eta_0\), the exact solution is the periodic right-traveling wave
+
+\begin{equation}
+\eta_{\mathrm{ex}}(x,t) = \exp\!\left[-50\left(\operatorname{mod}(x-ct, L)-0.5\right)^2\right]
+\label{eq:gaussian_exact}
+\end{equation}
+
+\paragraph{Crank-Nicolson discretization}
+The global semi-discrete system reads \(\mathcal{M}\dot{\underline{U}} + \mathcal{S}\underline{U} = \underline{0}\). The \(\theta\)-method with \(\theta = \tfrac{1}{2}\) is adopted, leading to the Crank-Nicolson scheme:
+
+\begin{equation}
+\mathcal{M} \frac{\underline{U}^{k+1}-\underline{U}^{k}}{\Delta t}
++
+\mathcal{S}
+\left[\frac{1}{2}\underline{U}^{k+1}+\frac{1}{2}\underline{U}^{k}\right]
+= \underline{0}
+\label{eq:cn_scheme}
+\end{equation}
+
+Collecting all unknowns on the left-hand side, the linear system to be solved at each time step is:
+
+\begin{equation}
+\left(\mathcal{M} + \frac{\Delta t}{2}\mathcal{S}\right)\underline{U}^{k+1}
+=
+\left(\mathcal{M} - \frac{\Delta t}{2}\mathcal{S}\right)\underline{U}^{k}
+\label{eq:cn_linear_system}
+\end{equation}
+
+The scheme is second-order accurate in time and unconditionally stable for the present conservative block system. Since the system matrix on the left-hand side of \eqref{eq:cn_linear_system} depends only on the mesh and on \(\Delta t\), it is assembled and factorized once before entering the time loop; only the right-hand side is updated at each step.
+
+\paragraph{Discrete \(L^2\) error}
+The accuracy of the numerical approximation is quantified by the \(L^2\) norm of the error on \(\eta\) at the final time:
+
+\begin{equation}
+\|\underline{\eta}_{\mathrm{ex}}(\cdot,T) - \underline{\eta}_h(\cdot,T)\|_{L^2(0,L)}
+=
+\left(\int_0^L \bigl|\underline{\eta}_{\mathrm{ex}}(x,T)-\underline{\eta}_h(x,T)\bigr|^2  dx\right)^{1/2}
+\label{eq:l2_error_def}
+\end{equation}
+
+Within the finite element framework, this integral is evaluated through the global mass matrix \(\mathbf{M}\). Letting \(\underline{e} = \underline{\eta}_{\mathrm{ex}}(T) - \underline{\eta}_h(T)\) denote the nodal error vector, the discrete estimate of \eqref{eq:l2_error_def} is:
+
+\begin{equation}
+E_{L^2} = \sqrt{\underline{e}^{\mathsf{T}}\mathbf{M} \underline{e}}
+\label{eq:discrete_l2}
+\end{equation}
+
+To ensure that the exact solution is evaluated at the same time actually reached by the solver, the effective time step is reset to \(\Delta t_{\mathrm{eff}} = T / N_{\mathrm{steps}}\) with \(N_{\mathrm{steps}} = \operatorname{round}(T/\Delta t)\). This correction prevents a mismatch between the target final time and the numerical time from contaminating the measured convergence rates.
+
+\subsection{Wave Propagation Snapshots}
+
+The comparison between the SEM approximation and the exact traveling-wave profile at the final time \(T = \SI{0.5}{\second}\) is shown in figure \ref{fig:gaussian_snapshots}, obtained with \(N_e = 20\) elements, polynomial degree \(p = 4\) and \(\Delta t = 10^{-3}\) \si{\second}.
+
+\paragraph{Wave packet transport: periodic wrap-around}
+The Gaussian pulse is transported rightward without distortion at the theoretical speed \(c = \sqrt{gH}\). The correct enforcement of periodic boundary conditions is evidenced by the re-entry of the pulse from the left boundary after crossing \(x = L\). This behavior is reproduced accurately by the SEM solver for both \(\eta\) and \(q\), with no perceptible numerical diffusion.
+
+\subsection{Convergence Analysis}
+
+The spatial convergence of the scheme is assessed by monitoring the discrete error \eqref{eq:discrete_l2} under mesh refinement (\(h\)-study) and polynomial enrichment (\(p\)-study). The theoretical spatial error estimate for the continuous Galerkin SEM of degree \(p\) reads:
+
+\begin{equation}
+E_{\mathrm{spatial}} \approx C h^{p+1}
+\label{eq:spatial_rate}
+\end{equation}
+
+provided the exact solution is sufficiently smooth. The total measured error also contains the temporal contribution of the Crank-Nicolson scheme:
+
+\begin{equation}
+E_{\mathrm{total}} \lesssim C_1 h^{p+1} + C_2 \Delta t^2
+\label{eq:total_error}
+\end{equation}
+
+In all convergence tests, \(\Delta t\) is scaled alongside \(h\) so that the temporal term remains negligible with respect to the spatial one. The experimental convergence rate between two successive refinements is:
+
+\begin{equation}
+r_i = \frac{\log(E_i / E_{i+1})}{\log(h_i / h_{i+1})}
+\label{eq:conv_rate}
+\end{equation}
+
+\paragraph{\(h\)-refinement: high-order algebraic convergence}
+The upper panel of figure \ref{fig:convergence} shows that the \(L^2\) error decreases monotonically under mesh refinement, with a slope compatible with the \(\mathcal{O}(h^5)\) reference. The slight deviation from the ideal theoretical exponent is physically expected: the Gaussian pulse, when extended periodically through the modulo operation in \eqref{eq:gaussian_exact}, is not globally smooth across the domain boundaries. This limits the regularity assumption underlying estimate \eqref{eq:spatial_rate}. Furthermore, the second-order temporal error of the Crank-Nicolson scheme contributes an irreducible baseline that prevents the total error from matching the ideal spatial trend exactly.
+
+\paragraph{\(p\)-enrichment: monotone decay}
+The lower panel of figure \ref{fig:convergence} confirms that the error decreases monotonically as the polynomial degree \(p\) is increased at fixed mesh. The trend is consistent with the high-order accuracy expected from the SEM framework. The same limiting mechanisms identified in the \(h\)-study apply here: the limited periodic regularity of the Gaussian datum and the \(\mathcal{O}(\Delta t^2)\) temporal floor define the effective accuracy ceiling for any fixed time step. Within these constraints, the observed monotone decay fully validates the spectral element implementation.
+
+\begin{figure}[!htb]
+    \centering
+    \subfloat[Free-surface elevation \(\eta(x,T)\). The numerical profile is visually indistinguishable from the exact solution. Since \(cT \approx \SI{1.56}{\meter} > L\), the pulse has crossed the right boundary and re-entered the domain from the left, providing a direct verification of the periodic connectivity implemented in the solver]
+    {\includegraphics[width=0.90\textwidth]{00_Images/HW2/P4.1_eta_snapshot.png}}
+    \\
+    \subfloat[Discharge \(q(x,T)\). Since the exact solution satisfies \(q_{\mathrm{ex}} = c \underline{\eta}_{\mathrm{ex}}\) at all times, the discharge reproduces the same translated Gaussian shape. The numerical result captures this proportionality without visible amplitude loss or phase lag, confirming the non-dissipative character of the Crank-Nicolson integrator]
+    {\includegraphics[width=0.90\textwidth]{00_Images/HW2/P4.2_q_snapshot.png}}
+    \caption{Wave propagation snapshots for the Gaussian benchmark at final time \(T = \SI{0.5}{\second}\). Initial conditions as in \eqref{eq:gaussian_ic}, exact solution as in \eqref{eq:gaussian_exact}. Physical parameters: \(L = \SI{1}{\meter}\), \(H = \SI{1}{\meter}\), \(g = \SI{9.81}{\meter\per\second\squared}\). Discretization: \(N_e = 20\), \(p = 4\), \(\Delta t = 10^{-3}\) \si{\second}. The wrap-around of the pulse from right to left confirms the correct implementation of periodic BC}
+    \label{fig:gaussian_snapshots}
+\end{figure}
+
+\begin{figure}[!htb]
+    \centering
+    \subfloat[Log-log plot of \(E_{L^2}\) versus mesh size \(h\) at fixed polynomial degree \(p = 4\), for meshes \(N_e = 10, 20, 40, 80\). The error decreases monotonically and follows a high-order algebraic trend. The local experimental rates are slightly below the ideal exponent of \(5\), consistently with the limited periodic regularity of the Gaussian datum and the residual second-order temporal error of the Crank-Nicolson integrator]
+    {\includegraphics[width=0.90\textwidth]{00_Images/HW2/P4.3_h_convergence.png}}
+    \\
+    \subfloat[Semi-log plot of \(E_{L^2}\) versus polynomial degree \(p\) at fixed mesh \(N_e = 5\), for \(p = 1, 2, 3, 4, 5\). The error decays monotonically as the approximation order increases, reflecting the polynomial enrichment of the SEM space. No visible saturation occurs within the tested range]
+    {\includegraphics[width=0.90\textwidth]{00_Images/HW2/P4.4_p_convergence.png}}
+    \caption{Convergence analysis for the Gaussian benchmark. The \(L^2\) error on \(\eta\) is evaluated at \(T = \SI{0.5}{\second}\) with the same physical parameters as in figure \ref{fig:gaussian_snapshots}. The slight deviation from the ideal spectral slopes is physically expected: the Gaussian profile, when extended periodically through the modulo argument, exhibits limited regularity at the domain boundaries, which weakens the smoothness assumptions underlying \eqref{eq:spatial_rate}. In addition, the second-order temporal error of the Crank-Nicolson scheme provides a non-negligible lower bound on the total error, as expressed in \eqref{eq:total_error}. Both effects are consistent with the observed behavior}
+    \label{fig:convergence}
+\end{figure}
+
+\clearpage

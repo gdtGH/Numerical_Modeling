@@ -1,0 +1,119 @@
+
+
+%\chapter{Homework 3 ( version B)}
+
+%\label{sc:H3_B}
+
+%\section{General Finite Volume Framework}
+%From the homework assignment, the strong formulation of the 1D Shallow Water Equations (SWE) is given as a hyperbolic system of conservation laws:
+%$$U_t + F(U)_x = 0$$
+
+%To derive the Finite Volume approximation, we integrate the strong formulation over the control volume (cell) $K_i = [x_{i-1/2}, x_{i+1/2}]$ and the time step $[t_n, t_{n+1}]$:
+%$$\int_{t_n}^{t_{n+1}} \int_{x_{i-1/2}}^{x_{i+1/2}} (U_t + F(U)_x) \, dx \, dt = 0$$
+
+%We define the spatial cell average of the solution at time $t_n$ as:
+%$$U_i^n = \frac{1}{h} \int_{x_{i-1/2}}^{x_{i+1/2}} U(x, t_n) \, dx$$
+%where $h = \Delta x$ is the constant spatial step. 
+
+%Applying the Fundamental Theorem of Calculus to the flux spatial derivative and integrating over time yields the \textbf{conservative discrete finite volume scheme}:
+%$$U_i^{n+1} = U_i^n - \frac{\Delta t}{h} \left( F_{i+1/2} - F_{i-1/2} \right)$$
+%where $F_{i+1/2}$ is the numerical flux at the interface $x_{i+1/2}$, approximating the time-averaged physical flux.
+
+
+%\section{First-Order Scheme (Godunov Method)}
+
+%For the first-order Godunov scheme, we assume a \textbf{piecewise constant reconstruction} of the numerical solution within each cell. 
+%$$U(x, t_n) = U_i^n, \quad \forall x \in K_i$$
+
+%This creates a discontinuity at each cell interface $x_{i+1/2}$. To compute the numerical flux, we must solve the local Riemann problem at the interface between the left state $U_L$ and the right state $U_R$:
+%    \textbf{Left state:}$U_L = U_i^n$
+%    \textbf{Right state:}$U_R = U_{i+1}^n$
+
+%The Godunov numerical flux is defined by evaluating the physical flux $F(U)$ at the exact solution of this Riemann problem $U^*$:
+%$$F_{i+1/2} = F^{God}(U_i^n, U_{i+1}^n)$$
+
+%Substituting this into the general discrete scheme gives the first-order approximation:
+%$$U_i^{n+1} = U_i^n - \frac{\Delta t}{h} \left[ F^{God}(U_i^n, U_{i+1}^n) - F^{God}(U_{i-1}^n, U_i^n) \right]$$
+
+%\section{Second-Order Scheme (Lax-Wendroff Reconstruction)}
+
+%To achieve second-order spatial accuracy, the Godunov method is extended using a \textbf{piecewise linear reconstruction} of the solution within the cells. 
+
+%Instead of evaluating the Riemann problem directly using the constant cell averages $U_i^n$, we evaluate the interface states using the specific Lax-Wendroff reconstruction provided in the assignment:
+%$$U_{i+1/2}^- = U_i^n + \frac{1}{2}(U_{i+1}^n - U_i^n)$$
+%$$U_{i+1/2}^+ = U_i^n - \frac{1}{2}(U_{i+1}^n - U_i^n)$$
+
+%These reconstructed values act as the new left and right states for the local Riemann problem at the interface $x_{i+1/2}$. The numerical flux is therefore computed as:
+%$$F_{i+1/2} = F^{God}(U_{i+1/2}^-, U_{i+1/2}^+)$$
+
+%Substituting these fluxes into the general finite volume formula yields the second-order scheme:
+%$$U_i^{n+1} = U_i^n - \frac{\Delta t}{h} \left[ F^{God}(U_{i+1/2}^-, U_{i+1/2}^+) - F^{God}(U_{i-1/2}^-, U_{i-1/2}^+) \right]$$
+
+%Here is the comprehensive and rigorous breakdown for **Question 2**, following the academic standard and theoretical framework established in your course notes.
+
+%\section{Problem Classification and Mathematical Assumptions}
+%We are analyzing the 1D Shallow Water Equations (SWE), which take the form of a **non-linear hyperbolic system of conservation laws**:
+%$$U_t + F(U)_x = 0$$
+%where $U = [h, q]^T$ and $F(U) = [q, \frac{q^2}{h} + \frac{1}{2}gh^2]^T$.
+
+%\subsection{Mathematical Assumptions & Operator Properties:}
+    %Hyperbolicity: The system is hyperbolic because the Jacobian matrix of the flux $A(U) = \frac{\partial F}{\partial U}$ has real and distinct eigenvalues. By linearizing around a steady state $H$, the wave velocities (eigenvalues) are $\lambda_{1,2} = u \pm \sqrt{gh}$. 
+    %Positivity: We must assume $h(x,t) > 0$ strictly, to avoid singularity in the flux term $\frac{q^2}{h}$.
+    %CFL Stability Condition: Because we will use explicit time-integration schemes, stability is governed by the Courant-Friedrichs-Lewy (CFL) condition. We must ensure that the numerical domain of dependence encompasses the physical one:
+    %$$\Delta t \le \frac{h}{\max |u \pm \sqrt{gh}|}$$
+
+%\section{Boundary Treatment (Reflecting Walls)}
+%The assignment requires reflecting wall boundary conditions: $q(0, t) = q(L, t) = 0$. 
+%In the Finite Volume Method, boundary conditions are strictly enforced using **ghost cells** outside the physical domain $[0, L]$. To impose zero normal velocity at the walls while allowing water height $h$ to vary, we apply symmetric/anti-symmetric reflections at the boundaries $x_{-1/2}$ and $x_{M+1/2}$:
+%*   **Left Boundary (Ghost Cell $i= -1$):** $h_{-1}^n = h_0^n$, and $q_{-1}^n = -q_0^n$.
+%*   **Right Boundary (Ghost Cell $i= M+1$):** $h_{M+1}^n = h_M^n$, and $q_{M+1}^n = -q_M^n$.
+%This ensures that the numerical flux evaluated at the boundaries yields exactly zero mass discharge across the walls.
+
+%\section{Discretization and Numerical Fluxes}
+
+%\subsection{First-Order Godunov Scheme}
+%The first-order Godunov scheme uses a piecewise constant spatial reconstruction $U_i^n$. The update formula is:
+%$$U_i^{n+1} = U_i^n - \frac{\Delta t}{h} \left( F_{i+1/2}^{God} - F_{i-1/2}^{God} \right)$$
+%where $F_{i+1/2}^{God} = F(U^*(U_i^n, U_{i+1}^n))$ is the exact solution $U^*$ to the local Riemann problem at the interface. 
+
+%**Important Note:** *This step requires information not present in the provided notes.* 
+%The lecture notes provide the exact Godunov flux evaluation strictly for scalar equations (e.g., Burgers' equation via $\min/\max F(u)$). They do not provide the analytical derivation for the exact Riemann solver (which requires iteratively finding the intermediate star regions connecting shocks and rarefactions) for the non-linear SWE system. In your MATLAB implementation, you will need to apply the specific Riemann solver (such as Roe, HLL, or an exact SWE solver) provided by your professor in practical sessions to compute $F^{God}$.
+
+%\subsection{Second-Order Scheme (Lax-Wendroff Reconstruction)}
+%To achieve second-order spatial accuracy and reduce the excessive numerical dissipation of the first-order scheme, we replace the piecewise constant states with piecewise linear reconstructed states at the cell interfaces:
+%$$U_{i+1/2}^- = U_i^n + \frac{1}{2}(U_{i+1}^n - U_i^n)$$
+%$$U_{i+1/2}^+ = U_{i+1}^n - \frac{1}{2}(U_{i+1}^n - U_i^n)$$
+%The numerical flux is then evaluated by solving the Riemann problem using these reconstructed left and right states:
+%$$F_{i+1/2}^{God} = F(U^*(U_{i+1/2}^-, U_{i+1/2}^+))$$
+%*Note:* As highlighted in the notes, second-order schemes can generate **spurious oscillations (dispersion error/Gibbs phenomenon)** close to the discontinuity. 
+
+%\section{Physical Interpretation of the Riemann Problems}
+%A Riemann problem represents an initial value problem consisting of two constant states separated by a discontinuity.
+
+    %\subsection{Dam Break ($h_L = 1, h_R = 0.1$):}
+    %This simulates the sudden collapse of a barrier separating deep water (left) and shallow water (right). Because $h_L > h_R$, the characteristic lines will dictate the formation of two distinct wave structures. A **shock wave (bore)** will propagate to the right into the shallow region, while a **rarefaction wave** (a smooth depression) will propagate to the left into the deep water.
+    
+    %\subsection{Reverse Dam Break ($h_L = 0.1, h_R = 1$):}
+    %This is the physically symmetric opposite of case (a). The high water is on the right. The shock wave will propagate to the left, and the rarefaction wave will propagate to the right. The reflecting boundary at $x=L$ will eventually cause the rarefaction wave to reflect and interact with the flow.
+    
+    %\subsection{Stationary Shock / Hydraulic Jump ($h_L = 1, h_R = 0.5$):}
+    %Here, the jump in height is less severe. Depending on the Froude number (derived from the wave speed), this configuration initializes a hydraulic jump. The exact evolution depends on the flux balance, but you will observe a shock propagating rightward and a rarefaction leftward, though with lower amplitudes and velocities compared to the pure dam break.
+
+        %### 5. MATLAB Implementation Structure
+        %To implement this efficiently in MATLAB, avoid writing a single monolithic script. Use vectorization to prevent slow loops across the spatial domain.
+        
+        %1.  **Initialization & Mesh Generation:**
+            %*   Define physical parameters: $L=1, T=1, g=9.81$.
+            %*   Define numerical parameters: $M$ (cells), $h = L/M$, and dynamically compute %$\Delta t$ at each step to respect the CFL condition.
+            %*   Initialize arrays `H` and `Q` over the spatial domain $[0, L]$.
+        %2.  **Initial Conditions:**
+            %*   Use logical indexing to set the piecewise initial conditions for Cases a, b, and c (e.g., `H(x < 0.5) = 1; H(x >= 0.5) = 0.1;`).
+        %3.  **Main Time Loop (`while t < T`):**
+            %*   **Boundary Conditions:** Apply ghost cell reflections at the ends of arrays `H` and `Q`.
+            %*   **Reconstruction (If 2nd Order):** Compute $U_{i+1/2}^-$ and $U_{i+1/2}^+$ using vectorized array operations.
+            %*   **Flux Computation:** Call your modular Riemann solver routine to compute %$F_{i+1/2}$ at all interfaces simultaneously. *Track complex arithmetic issues if your solver generates unphysical negative water heights (which lead to imaginary wave speeds).*
+            %*   **Update Step:** Compute $U_i^{n+1} = U_i^n - \frac{\Delta t}{h}(F_{i+1/2} - F_{i-1/2})$.
+            %*   Update $t = t + \Delta t$.
+        %4.  **Error and Dispersion Study:**
+            %*   When comparing the two schemes, observe the **dissipation error**. The first-order Godunov scheme will heavily smear the shock fronts (acting as artificial numerical viscosity). 
+            %*   The Lax-Wendroff reconstruction will maintain sharp shock fronts but may exhibit **dispersion error** — visible as spurious non-physical oscillations (wiggles) trailing the shock.

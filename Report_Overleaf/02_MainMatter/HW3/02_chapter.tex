@@ -1,0 +1,146 @@
+%! TEX root = main.tex
+
+\section{Riemann Problems and Physical Interpretation}
+\label{sc:32}
+
+All three Riemann problems are solved on the domain \( (0, L) \) with \( L = \SI{1}{\meter} \), \( g = \SI{9.81}{\meter\per\second\squared} \) and final time \( T = \SI{1}{\second} \), employing a uniform FVM mesh.
+In all three test cases the discharge \( q \) is driven to zero at both \( x = 0 \) and \( x = L \) at every time level, confirming the correct implementation of the reflecting wall boundary conditions enforced through the ghost-cell approach described in section \ref{ssc:312}.
+
+\subsection{Dam Break and Reverse Dam Break}
+\label{ssc:321}
+
+\paragraph{Dam break: physical structure}
+The dam-break problem is initialized with water height \( h_L = 1 \) on the left half of the domain and \( h_R = 0.1 \) on the right. The initial discontinuity at \( x = L/2 \) immediately generates two wave families that propagate in opposite directions. A smooth rarefaction fan travels leftward, continuously expanding the region of intermediate height and gradually accelerating the fluid. A shock wave travels rightward as a steep, near-vertical front, carrying the abrupt transition between the intermediate state and the undisturbed low water on the right(figure \ref{fig:dam_break}). The discharge \( q \) is positive throughout the domain, reflecting the net mass transport from the high reservoir towards the low region (figure \ref{fig:dam_break}). After reaching the right wall, the shock is reflected and the discharge drops back to zero at the boundary, as seen in figure \ref{fig:dam_break}.
+
+\begin{figure}[!htb]
+    \centering
+    \includegraphics[width=0.90\textwidth]{00_Images/HW3/3.1_DamBreak.png}
+    \caption{Dam-break Riemann problem at \(T = \SI{1}{\second}\). Left panel: water height \(h(x,T)\) for both schemes. The Godunov scheme (solid blue) captures the rarefaction and the shock monotonically but with visibly diffused fronts; the Lax-Wendroff reconstruction (dashed orange) sharpens both features at the cost of pronounced spurious oscillations in the plateau region and at the shock. Right panel: discharge \(q(x,T)\); the positive values confirm a uniform rightward mass transport, while \(q = 0\) at both walls verifies the reflecting boundary conditions. Physical parameters: \(L = \SI{1}{\meter}\), \(g = \SI{9.81}{\meter\per\second\squared}\), \(h_L = 1\), \(h_R = 0.1\)}
+    \label{fig:dam_break}
+\end{figure}
+
+\clearpage
+\paragraph{Dam break: numerical comparison}
+The Godunov scheme captures the shock in a rigorously monotone fashion: no overshoot or undershoot appears, and the solution satisfies the entropy condition by construction. The price paid is significant numerical diffusion — the shock front, which is a true mathematical discontinuity, is spread over several mesh cells, and the rarefaction fan is similarly smeared. The Lax-Wendroff reconstruction resolves both the rarefaction and the shock with considerably higher spatial sharpness, reducing the transition width compared to Godunov. However, the absence of a slope limiter allows unphysical oscillations to develop: the plateau region between the rarefaction tail and the shock front is corrupted by persistent Gibbs-like ripples in both \( h \) and \( q \), and a pronounced overshoot appears immediately upstream of the shock front.
+
+\paragraph{Reverse dam break: mirror dynamics}
+The reverse dam-break configuration, initialized with \( h_L = 0.1 \) and \( h_R = 1 \), produces a wave structure that is the spatial mirror image of the standard dam break. The shock now travels leftward from the initial discontinuity, while the rarefaction fan propagates to the right. The discharge \( q \) is uniformly negative, indicating mass transport from right to left, and reaches zero at both walls as required by the boundary conditions. The same qualitative contrast between the two schemes is observed as in the forward case, confirming that the numerical properties of the Godunov and Lax-Wendroff methods are symmetric with respect to the direction of propagation.
+
+\begin{figure}[!htb]
+    \centering
+    \includegraphics[width=0.90\textwidth]{00_Images/HW3/3.2_RevDamBreak.png}
+    \caption{Reverse dam-break Riemann problem at \(T = \SI{1}{\second}\). Left panel: water height \(h(x,T)\). The shock propagates leftward, producing a sharp front near \(x \approx 0.15\); the Lax-Wendroff reconstruction (dashed orange) introduces Gibbs oscillations on the high-water plateau to the right of the shock, while the Godunov scheme (solid blue) remains monotone. Right panel: discharge \(q(x,T)\); negative values throughout confirm the leftward mass transport, with \(q = 0\) enforced at both domain boundaries. Physical parameters: \(L = \SI{1}{\meter}\), \(g = \SI{9.81}{\meter\per\second\squared}\), \(h_L = 0.1\), \(h_R = 1\)}
+    \label{fig:rev_dam_break}
+\end{figure}
+
+\subsection{Stationary Shock (Hydraulic Jump)}
+\label{ssc:322}
+
+\paragraph{Rankine-Hugoniot analysis for case (c).}
+Before discussing the numerical results, it is essential to examine whether 
+the initial data prescribed in case~(c), namely
+%
+\begin{equation}
+    h(x,0) = \begin{cases} 1 & x < \tfrac{1}{2} \\ 0.5 & x \geq \tfrac{1}{2} 
+    \end{cases},
+    \qquad u(x,0) = 0 
+    \quad \Longrightarrow \quad 
+    q(x,0) = h(x,0)\,u(x,0) = 0,
+    \label{eq:IC_casec}
+\end{equation}
+%
+are consistent with a stationary shock. A shock of speed $\sigma$ 
+separating left state $\underline{U}_L = [h_L, q_L]^T$ from right state 
+$\underline{U}_R = [h_R, q_R]^T$ must satisfy the 
+\textbf{Rankine-Hugoniot jump conditions}:
+%
+\begin{equation}
+    \sigma\,[h] = [q], 
+    \qquad 
+    \sigma\,[q] = \left[\frac{q^2}{h} + \frac{1}{2}gh^2\right]
+    \label{eq:RH_casec}
+\end{equation}
+%
+where $[\,\cdot\,] = (\,\cdot\,)_R - (\,\cdot\,)_L$ denotes the jump 
+across the discontinuity. Substituting $q_L = q_R = 0$ into the first 
+equation of \eqref{eq:RH_casec}:
+%
+\begin{equation}
+    \sigma\,(h_R - h_L) = 0
+\end{equation}
+%
+Since $h_L = 1 \neq h_R = 0.5$, this is satisfied only if $\sigma = 0$.
+Substituting $\sigma = 0$ and $q_L = q_R = 0$ into the second equation 
+of \eqref{eq:RH_casec}:
+%
+\begin{equation}
+    0 = \frac{1}{2}g\!\left(h_R^2 - h_L^2\right) 
+      = \frac{1}{2}\times 9.81 \times (0.25 - 1) 
+      = -3.68\;\mathrm{m^2/s^2} \neq 0
+    \label{eq:RH_momentum_casec}
+\end{equation}
+%
+Equation~\eqref{eq:RH_momentum_casec} shows that the second 
+Rankine-Hugoniot condition is \textbf{not satisfied} for $\sigma = 0$ 
+with $q_L = q_R = 0$. The initial data~\eqref{eq:IC_casec} therefore 
+do \emph{not} constitute a stationary shock: the pressure imbalance 
+$\tfrac{1}{2}g(h_L^2 - h_R^2) \neq 0$ immediately drives a net momentum 
+flux across the interface. The resulting Riemann problem generates two 
+outgoing wave families — a left-propagating rarefaction fan and a 
+right-propagating shock — which subsequently interact with the reflecting 
+walls. What appears near the center of the domain at $T = \SI{1}{\second}$ 
+is not a true stationary hydraulic jump but rather the complex wave pattern 
+arising from the shock reflecting off the right wall and re-entering the 
+domain. A true stationary hydraulic jump would require a non-zero incoming 
+flow satisfying
+%
+\begin{equation}
+    q_L = q_R \neq 0,
+    \qquad
+    \frac{q_L^2}{h_L} + \frac{1}{2}g h_L^2 
+    = \frac{q_R^2}{h_R} + \frac{1}{2}g h_R^2
+    \label{eq:true_stationary}
+\end{equation}
+%
+which is not the case here.
+
+\paragraph{Physical structure of the hydraulic jump}
+
+The third test case is initialized with a height ratio \( h_L / h_R \) and initial momentum \( q \) chosen so that the Rankine-Hugoniot conditions yield a shock speed of approximately zero. The result is a stationary hydraulic jump, an abrupt transition in water height that remains near-fixed at the center of the domain over the entire simulation interval. On the left side of the jump, the water is shallow and fast (supercritical flow, Froude number \( Fr > 1 \)); on the right, it is deep and slow (subcritical flow, \( Fr < 1 \)). The discharge profile transitions smoothly from the left-wall value of zero, rises through the supercritical region, and drops sharply across the jump, correctly returning to zero at the right wall in accordance with the reflecting boundary conditions.
+
+\begin{figure}[!htb]
+    \centering
+    \includegraphics[width=0.90\textwidth]{00_Images/HW3/3.3_Shock.png}
+    \caption{Stationary-shock Riemann problem at \(T = \SI{1}{\second}\). Left panel: water height \(h(x,T)\). The hydraulic jump is located near \(x \approx 0.6\); the Godunov scheme (solid blue) resolves it as a smooth, diffused transition, whereas the Lax-Wendroff reconstruction (dashed orange) produces a sharp but heavily oscillating profile, with overshoots clearly visible above the post-shock height. Right panel: discharge \(q(x,T)\); the near-zero values on the left of the jump confirm the supercritical regime, while the strong Gibbs ripples of the Lax-Wendroff solution are most pronounced in the vicinity of the discontinuity. Physical parameters: \(L = \SI{1}{\meter}\), \(g = \SI{9.81}{\meter\per\second\squared}\), reflecting walls at both ends}
+    \label{fig:stationary_shock}
+\end{figure}
+
+\paragraph{Amplified dispersive errors and the need for slope limiters}
+The stationary shock constitutes the most demanding test for the Lax-Wendroff reconstruction. Because the jump is fixed in space rather than advecting across the mesh, the dispersive error accumulates coherently over the entire time interval instead of being swept away. As a consequence, the Gibbs oscillations visible in figures \ref{fig:dam_break} and \ref{fig:rev_dam_break} become substantially more pronounced here: the dashed-orange curve in figure \ref{fig:stationary_shock} exhibits large-amplitude, high-frequency ripples that extend well into both the subcritical and supercritical regions. The Godunov scheme, by contrast, remains entirely monotone and converges to the correct shock position, confirming the theoretical robustness discussed in section \ref{ssc:313}. The comparison between the two schemes in figure \ref{fig:stationary_shock} provides clear visual evidence that second-order reconstruction without limiting is unsuitable for problems containing strong stationary discontinuities. The natural remedy is the introduction of Total Variation Diminishing (TVD) slope limiters, such as the minmod or van Leer limiters, which adaptively suppress the linear reconstruction in the vicinity of shocks while retaining second-order accuracy in smooth regions, thereby combining the monotonicity of the Godunov scheme with the sharper resolution of Lax-Wendroff.
+
+\paragraph{Quantitative wave speed estimates.}
+The characteristic speeds at $t = 0^+$ provide a consistency check 
+for the numerical results. The initial celerities on each side of 
+the discontinuity are:
+%
+\begin{equation}
+    c_L = \sqrt{g h_L} = \sqrt{9.81 \times 1} \approx 3.13\;\mathrm{m/s},
+    \qquad
+    c_R = \sqrt{g h_R} = \sqrt{9.81 \times 0.1} \approx 0.99\;\mathrm{m/s}
+    \label{eq:celerities_dambreak}
+\end{equation}
+%
+The left-propagating rarefaction fan travels at speed $c_L \approx 
+3.13\,\mathrm{m/s}$ and reaches the left wall 
+($x = 0$, distance $L/2 = 0.5\,\mathrm{m}$) at time 
+$t_L \approx 0.5/3.13 \approx 0.16\,\mathrm{s}$. 
+The right-propagating shock travels at a speed $\sigma$ bounded 
+between $c_R$ and $c_L$; a Rankine-Hugoniot estimate gives 
+$\sigma \approx 1.6\,\mathrm{m/s}$, so the shock arrives at 
+the right wall at $t_R \approx 0.5/1.6 \approx 0.31\,\mathrm{s}$, 
+well before $T = \SI{1}{\second}$. This is confirmed by 
+figure~\ref{fig:dam_break}, where at $T = 1\,\mathrm{s}$ the shock 
+has already reflected. For the reverse dam break (case~b), the same 
+analysis applies by symmetry with $h_L \leftrightarrow h_R$: the shock 
+propagates leftward at the same speed, and the figures confirm 
+the mirror behavior.
