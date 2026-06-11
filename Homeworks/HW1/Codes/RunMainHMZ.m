@@ -58,7 +58,7 @@ title(sprintf('FEM vs Exact Solution — N = %d (coarse mesh)', nElVec(1)),...
 legend('Location','best','FontSize',fontsize);
 grid on; box on; ax=gca; ax.FontSize=fontsize;
 xlim([0 1]);
-exportgraphics(gcf, fullfile(out_dir, '2.1_FirstInteraction.png'), 'Resolution', 150);
+exportgraphics(gcf, fullfile(out_dir, '2.1_FirstInteraction.png'), 'Resolution', 200);
 
 %% Plot — FEM vs Exact, fine mesh (N=80)
 
@@ -77,7 +77,7 @@ title(sprintf('FEM vs Exact Solution — N = %d (fine mesh)', nElVec(4)),...
 legend('Location','best','FontSize',fontsize);
 grid on; box on; ax=gca; ax.FontSize=fontsize;
 xlim([0 1]);
-exportgraphics(gcf, fullfile(out_dir, '2.2_LastInteraction.png'), 'Resolution', 150);
+exportgraphics(gcf, fullfile(out_dir, '2.2_LastInteraction.png'), 'Resolution', 200);
 
 %% Plot — Convergence L2
 
@@ -104,7 +104,7 @@ ylabel('||u - u_h||_{L^2(0,1)}','FontSize',fontsize);
 title('Convergence Analysis — L^2 Norm','FontSize',fontsizeT,'FontWeight','bold');
 legend('Location','best','FontSize',fontsize);
 grid on; box on; ax=gca; ax.FontSize=fontsize;
-exportgraphics(gcf, fullfile(out_dir, '2.3_Convergence.png'), 'Resolution', 150);
+exportgraphics(gcf, fullfile(out_dir, '2.3_Convergence.png'), 'Resolution', 200);
 
 fprintf('\n--- L2 Convergence Rates ---\n');
 for i = 1:length(rates)
@@ -135,7 +135,7 @@ title('Amplitude of the FEM Solution — Impedance Jump at x = 0.5',...
       'FontSize',fontsizeT,'FontWeight','bold');
 grid on; box on; ax=gca; ax.FontSize=fontsize;
 xlim([0 1]);
-exportgraphics(gcf, fullfile(out_dir, '3.1_amplitude.png'), 'Resolution', 150);
+exportgraphics(gcf, fullfile(out_dir, '3.1_amplitude.png'), 'Resolution', 200);
 
 figure('Name','Phase — Point 3','NumberTitle','off');
 set(gcf, 'WindowState', 'maximized');
@@ -147,7 +147,7 @@ title('Phase of the FEM Solution — Impedance Jump at x = 0.5',...
       'FontSize',fontsizeT,'FontWeight','bold');
 grid on; box on; ax=gca; ax.FontSize=fontsize;
 xlim([0 1]);
-exportgraphics(gcf, fullfile(out_dir, '3.2_phase.png'), 'Resolution', 150);
+exportgraphics(gcf, fullfile(out_dir, '3.2_phase.png'), 'Resolution', 200);
 
 %% =========================================================
 %  POINT 4 — Numerical Dispersion Analysis
@@ -170,18 +170,9 @@ for i = 1:length(nElVec4)
     h_e       = Femregion.h;
     n         = Femregion.ndof;
 
-    % Stiffness from standard assembly
-    [A_nbc, ~] = Matrix1D(Data4, Femregion);
-
-    % ---- Consistent P1 mass matrix (tridiagonal) ----
-    % Matrix1D usa quadratura ai trapezi → massa lumped → k_h < k (WRONG).
-    % Massa consistente → k_h > k come richiesto dalla teoria.
-    d0      = 2*h_e/3 * ones(n,1);
-    d0(1)   = h_e/3;
-    d0(end) = h_e/3;
-    d1      = h_e/6 * ones(n,1);
-    M_nbc   = spdiags([d1, d0, d1], [-1, 0, 1], n, n);
-    % -------------------------------------------------
+    % Stiffness and consistent P1 mass matrix from standard assembly
+    % (Matrix1D uses Cavalieri-Simpson → consistent mass → k_h > k).
+    [A_nbc, M_nbc] = Matrix1D(Data4, Femregion);
 
     ndof  = n;
     idx   = 1:ndof-1;          % remove last DOF (Dirichlet at x=L)
@@ -215,17 +206,17 @@ set(gcf, 'WindowState', 'maximized');
 plot(hLam_ref, ones(size(hLam_ref)), 'k--', 'LineWidth',1.5,...
      'DisplayName','Exact  k_h/k = 1');
 hold on;
-plot(hLam_ref, kh_asympt, '--', 'Color',c3, 'LineWidth',1.5,...
-     'DisplayName','Asymptotic  1 + \pi^2/6 (h/\lambda)^2');
+plot(hLam_ref, kh_asympt, '-r', 'LineWidth',1.5,...
+     'DisplayName','1 + \pi^2/6 (h/\lambda)^2');
 scatter(hOverLambda_all, khOverK_all, 18, 'blue', 'filled',...
         'DisplayName','FEM P1 — k_h/k');
 xlabel('h/\lambda  (mesh size / wavelength)', 'FontSize',fontsize);
 ylabel('k_h / k', 'FontSize',fontsize);
 title('Numerical Dispersion Curve — FEM P1', 'FontSize',fontsizeT, 'FontWeight','bold');
 legend('Location','best', 'FontSize',fontsize);
-xlim([0 0.5]); ylim([0.99 1.15]);
+xlim([0 0.5]); ylim([0.98 1.12]);
 grid on; box on; ax=gca; ax.FontSize=fontsize;
-exportgraphics(gcf, fullfile(out_dir, '4_Dispersion.png'), 'Resolution', 150);
+exportgraphics(gcf, fullfile(out_dir, '4_Dispersion.png'), 'Resolution', 200);
 
 %% =========================================================
 %  POINT 5 — Perfectly Matched Layer (PML)
@@ -240,13 +231,7 @@ Data5.plot_eigvct  = 0;
 [~, sol5, fem5, ~] = MainHMZ(Data5, 240);
 x5 = fem5.coord(:,1);
 u5 = sol5.uh;
-
-% Physical domain mask (for phase comparison)
-mask_phys = x5 <= 1 + 1e-10;
-x5_phys   = x5(mask_phys);
-u5_phys   = u5(mask_phys);
-
-x_PML_end = max(x5);   % = 1.2 con L_PML = 0.2
+% Plot the full extended domain (0, 1.2), PML included.
 
 % ---- Figure 1: Amplitude — Impedance BC (troncata a 1) vs PML (fino a 1.2) ----
 % Estende u3 alla dimensione di x5: NaN per x > 1 (non plottati)
@@ -264,7 +249,7 @@ xline(0.5, '--k', 'LineWidth',1.2, ...
       'Label','x = 0.5  (\mu jump)', ...
       'LabelVerticalAlignment','bottom', 'FontSize',fontsize-4, ...
       'HandleVisibility','off');
-xline(1.0, '--r', 'LineWidth',1.5, ...
+xline(1.0, ':k', 'LineWidth',1.2, ...
       'Label','x = 1  (PML interface)', ...
       'LabelVerticalAlignment','bottom', 'FontSize',fontsize-4, ...
       'HandleVisibility','off');
@@ -274,8 +259,8 @@ title('Amplitude Comparison — Impedance BC vs PML', ...
       'FontSize',fontsizeT, 'FontWeight','bold');
 legend('Location','best', 'FontSize',fontsize);
 grid on; box on; ax=gca; ax.FontSize=fontsize;
-xlim([0, x_PML_end]);
-exportgraphics(gcf, fullfile(out_dir, '5.1_amplitude.png'), 'Resolution', 150);
+xlim([0 1.2]);
+exportgraphics(gcf, fullfile(out_dir, '5.1_PML_Amplitude.png'), 'Resolution', 200);
 
 % ---- Figure 2: Phase comparison P3 vs P5 su dominio esteso ----
 phase3_ext = NaN(size(x5));
@@ -292,7 +277,7 @@ xline(0.5, '--k', 'LineWidth',1.2, ...
       'Label','x = 0.5  (\mu jump)',...
       'LabelVerticalAlignment','bottom', 'FontSize',fontsize-4,...
       'HandleVisibility','off');
-xline(1.0, '--r', 'LineWidth',1.5, ...
+xline(1.0, ':k', 'LineWidth',1.2, ...
       'Label','x = 1  (PML interface)',...
       'LabelVerticalAlignment','bottom', 'FontSize',fontsize-4,...
       'HandleVisibility','off');
@@ -302,5 +287,5 @@ title('Phase Comparison — Impedance BC vs PML',...
       'FontSize',fontsizeT, 'FontWeight','bold');
 legend('Location','best', 'FontSize',fontsize);
 grid on; box on; ax=gca; ax.FontSize=fontsize;
-xlim([0, x_PML_end]);
-exportgraphics(gcf, fullfile(out_dir, '5.2_phase.png'), 'Resolution', 150);
+xlim([0 1.2]);
+exportgraphics(gcf, fullfile(out_dir, '5.2_PML_Phase.png'), 'Resolution', 200);

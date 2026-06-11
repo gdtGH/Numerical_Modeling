@@ -28,7 +28,9 @@ connectivity = femregion.connectivity; % connectivity matrix
 [basis] = ShapeBasis;
 
 % quadrature nodes and weights for integrals
-[nodes_1D, w_1D] = Quadrature(2);
+% Cavalieri-Simpson (3 nodes): integrates phi_i*phi_j exactly for P1,
+% giving the consistent local mass matrix (h/6)*[2 1; 1 2].
+[nodes_1D, w_1D] = Quadrature(3);
 
 % evaluation of shape bases on quadrature nodes
 [Phi,GradPhi] = EvalShapeBasis(basis,nodes_1D);

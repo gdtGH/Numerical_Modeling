@@ -44,10 +44,11 @@ switch nqn
         %===================================================
         % Cavalieri-Simpson rule
         %===================================================
-        
-        w(1) = 1/3;
-        w(2) = 4/3;
-        w(3) = 1/3;
+        % Weights must sum to 1 on the reference element [0,1]
+        % (GetJacobian uses BJ = full element length).
+        w(1) = 1/6;
+        w(2) = 4/6;
+        w(3) = 1/6;
         
         xnod(1) = 0;
         xnod(2) = 0.5;
