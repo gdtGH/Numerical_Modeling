@@ -1,75 +1,62 @@
 % LaxWendroffFlux.m
-% Computes the 2nd-order numerical flux at interface x_{i+1/2} using the
-% MUSCL-Hancock scheme with the minmod slope limiter.
+% Second-order numerical flux at interface x_{i+1/2} using a PURE
+% Lax-Wendroff (unlimited) linear reconstruction — exactly as required by
+% the HW3 assignment.  NO slope limiter is applied.
 %
 % THEORY:
-%   Pure Lax-Wendroff (no limiter) is known to produce spurious oscillations
-%   near shocks in nonlinear systems, leading to h < 0 and blow-up.
-%   The standard fix is to replace the fixed half-slope with a TVD-limited
-%   slope (minmod), which falls back to 1st-order (Godunov) near shocks and
-%   retains 2nd-order accuracy in smooth regions.
+%   The interface states are reconstructed with the fixed (unlimited) slope
+%   (U_{i+1} - U_i):
+%       U_{i+1/2}^-  =  U_i     + 0.5*(U_{i+1} - U_i)
+%       U_{i+1/2}^+  =  U_{i+1}  - 0.5*(U_{i+1} - U_i)
+%   (both collapse to the cell-interface average 0.5*(U_i + U_{i+1})), and the
+%   flux is the exact Godunov flux evaluated on those reconstructed states.
+%   With Forward Euler in time this is the classic second-order centred
+%   scheme: it is dispersive and is KNOWN to produce spurious oscillations
+%   and h<0 (blow-up) near shocks, because no TVD/limiter mechanism clips the
+%   unphysical over/undershoots.  Demonstrating that failure is the point of
+%   the assignment — see the blow-up guard in MainFVM.m.
 %
-%   The homework formula is recovered exactly when the solution is smooth:
-%     U_{i+1/2}^-  =  U_i   + 0.5*(U_{i+1} - U_i)
-%     U_{i+1/2}^+  =  U_{i+1} - 0.5*(U_{i+1} - U_i)
-%   The minmod limiter only clips the slope when it changes sign between
-%   adjacent cells (i.e. at a local extremum or near a shock).
+%   (The previous version of this file used a MUSCL reconstruction with the
+%    minmod limiter; that TVD machinery has been removed on purpose.)
+%
+% SIGNATURE NOTE:
+%   The 4-state signature (U_LL, U_L, U_R, U_RR) is kept UNCHANGED so the call
+%   in MainFVM.m needs no edit.  The pure Lax-Wendroff stencil only uses the
+%   two interface-adjacent cells U_L = U_i and U_R = U_{i+1}; U_LL and U_RR
+%   are intentionally ignored (no wider stencil / no limiter).
 %
 % INPUT:
-%   U_LL  (2x1)  U_{i-1}  — left  neighbor of cell i
+%   U_LL  (2x1)  U_{i-1}  — UNUSED (kept for signature compatibility)
 %   U_L   (2x1)  U_i      — left  cell  (cell i)
 %   U_R   (2x1)  U_{i+1}  — right cell  (cell i+1)
-%   U_RR  (2x1)  U_{i+2}  — right neighbor of cell i+1
+%   U_RR  (2x1)  U_{i+2}  — UNUSED (kept for signature compatibility)
 %   g     (scalar) gravitational acceleration
 %
 % OUTPUT:
-%   Fnum  (2x1)  2nd-order TVD flux at the interface
+%   Fnum  (2x1)  pure (unlimited) Lax-Wendroff flux at the interface
 
-function Fnum = LaxWendroffFlux(U_LL, U_L, U_R, U_RR, g)
-
-%--------------------------------------------------------------------------
-% Minmod-limited slopes for cell i (left) and cell i+1 (right)
-%--------------------------------------------------------------------------
-%   slope_L = minmod( U_i - U_{i-1},  U_{i+1} - U_i   )
-%   slope_R = minmod( U_{i+1} - U_i,  U_{i+2} - U_{i+1} )
-%--------------------------------------------------------------------------
-slope_L = minmod_vec(U_L  - U_LL,  U_R  - U_L);
-slope_R = minmod_vec(U_R  - U_L,   U_RR - U_R);
+function Fnum = LaxWendroffFlux(U_LL, U_L, U_R, U_RR, g) %#ok<INUSL>
 
 %--------------------------------------------------------------------------
-% Reconstruct states at the interface
+% Pure Lax-Wendroff reconstruction (fixed, unlimited slope = U_R - U_L)
 %--------------------------------------------------------------------------
-U_L_recon = U_L + 0.5 * slope_L;   % U_{i+1/2}^-
-U_R_recon = U_R - 0.5 * slope_R;   % U_{i+1/2}^+
+dU        = U_R - U_L;
+U_L_recon = U_L + 0.5 * dU;     % = 0.5*(U_L + U_R)
+U_R_recon = U_R - 0.5 * dU;     % = 0.5*(U_L + U_R)
 
 %--------------------------------------------------------------------------
-% Ensure positivity of h in reconstructed states (backup safety)
+% MINIMAL POSITIVITY SAFEGUARD (NOT a slope limiter / NOT a TVD fix):
+% if a reconstructed depth becomes non-positive, fall back to the
+% (un-reconstructed) cell state for that interface side.  This only prevents
+% sqrt of a negative number / division by zero inside the flux — it does NOT
+% suppress the oscillations the pure scheme is meant to exhibit.
 %--------------------------------------------------------------------------
-if U_L_recon(1) < 0,  U_L_recon(1) = 0;  U_L_recon(2) = 0;  end
-if U_R_recon(1) < 0,  U_R_recon(1) = 0;  U_R_recon(2) = 0;  end
+if U_L_recon(1) <= 0,  U_L_recon = U_L;  end
+if U_R_recon(1) <= 0,  U_R_recon = U_R;  end
 
 %--------------------------------------------------------------------------
-% Roe flux on reconstructed states
+% Exact Godunov flux on the reconstructed states
 %--------------------------------------------------------------------------
 Fnum = GodunovFlux(U_L_recon, U_R_recon, g);
 
-end
-
-%--------------------------------------------------------------------------
-% MINMOD LIMITER (component-wise)
-%   minmod(a, b) = 0   if sign(a) ~= sign(b)   (local extremum)
-%               = a    if |a| <= |b|             (a is less steep)
-%               = b    otherwise
-%--------------------------------------------------------------------------
-function s = minmod_vec(a, b)
-    s      = zeros(2, 1);
-    for i  = 1:2
-        if a(i) * b(i) <= 0
-            s(i) = 0;                               % opposite signs → zero slope
-        elseif abs(a(i)) <= abs(b(i))
-            s(i) = a(i);                            % left slope is gentler
-        else
-            s(i) = b(i);                            % right slope is gentler
-        end
-    end
 end

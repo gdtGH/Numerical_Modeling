@@ -58,6 +58,8 @@ h_dry    = 1e-6;
 t        = 0;
 iter     = 0;
 max_iter = 50000;     % standard: ~1500 steps; modified flux near h->0: up to ~20000
+diverged = false;     % set true if a NaN/Inf or h<0 blow-up is detected
+t_blowup = NaN;       % time at which the (rejected) blow-up step was attempted
 
 while t < Data.T * (1 - 1e-12)
 
@@ -66,6 +68,13 @@ while t < Data.T * (1 - 1e-12)
         warning('MainFVM: max iterations (%d) at t = %.6f. Stopping.', max_iter, t);
         break
     end
+
+    %----------------------------------------------------------------------
+    % Snapshot of the last VALID state, used to roll back on a blow-up
+    % (see the blow-up guard after the update below).
+    %----------------------------------------------------------------------
+    U_prev = U;
+    t_prev = t;
 
     %----------------------------------------------------------------------
     % 3a. Dry-cell treatment
@@ -147,6 +156,32 @@ while t < Data.T * (1 - 1e-12)
     U = U - (dt / dx) * (F_all(:, 2:M+1) - F_all(:, 1:M));
 
     %----------------------------------------------------------------------
+    % 3e-bis. BLOW-UP GUARD
+    %     The pure Lax-Wendroff scheme (no limiter) is expected to develop
+    %     unbounded oscillations / negative depths near shocks.  Rather than
+    %     spinning to max_iter on NaN/Inf garbage, detect the blow-up, roll
+    %     back to the last valid state, and stop.  This DOCUMENTS the failure
+    %     (it does not mask it) so the report can plot the last stable time.
+    %----------------------------------------------------------------------
+    if any(~isfinite(U(:))) || min(U(1,:)) < -1e-6
+        diverged = true;
+        t_blowup = t + dt;          % time of the rejected step
+        U = U_prev;                 % restore last valid state
+        t = t_prev;                 % and its time
+        if strcmp(scheme, 'laxwendroff')
+            warning(['Lax-Wendroff puro: oscillazioni non limitate / ' ...
+                     'blow-up vicino allo shock (atteso senza limitatore). ' ...
+                     'Blow-up a t = %.6f; ultimo stato valido a t = %.6f.'], ...
+                     t_blowup, t_prev);
+        else
+            warning(['MainFVM: blow-up (NaN/Inf o h<0) con scheme "%s" ' ...
+                     'a t = %.6f; ultimo stato valido a t = %.6f.'], ...
+                     scheme, t_blowup, t_prev);
+        end
+        break
+    end
+
+    %----------------------------------------------------------------------
     % 3f. Advance time
     %----------------------------------------------------------------------
     t = t + dt;
@@ -159,10 +194,12 @@ fprintf('============================================================\n');
 %==========================================================================
 % 4. OUTPUT
 %==========================================================================
-Solutions.x = x;
-Solutions.h = U(1,:)';
-Solutions.q = U(2,:)';
-Solutions.u = U(2,:)' ./ max(U(1,:)', eps);
-Solutions.t = t;
+Solutions.x        = x;
+Solutions.h        = U(1,:)';
+Solutions.q        = U(2,:)';
+Solutions.u        = U(2,:)' ./ max(U(1,:)', eps);
+Solutions.t        = t;           % last VALID time reached
+Solutions.diverged = diverged;    % true if the run stopped on a blow-up
+Solutions.t_blowup = t_blowup;    % time of the rejected blow-up step (NaN if none)
 
 end
